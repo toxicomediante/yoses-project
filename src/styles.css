@@ -83,3 +83,24 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;ba
 .weight-input-wrap span{height:100%;min-width:58px;display:grid;place-items:center;border-left:1px solid rgba(255,255,255,.08);color:var(--acid);font-size:9px;font-weight:800;letter-spacing:2px}
 .weight-input-wrap input::-webkit-outer-spin-button,.weight-input-wrap input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .weight-input-wrap input[type=number]{-moz-appearance:textfield}
+
+.alcohol-detail{margin-top:10px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(4,6,5,.48);overflow:hidden}
+.alcohol-detail-toggle{width:100%;height:42px;border:0;background:transparent;color:#b8c0b7;padding:0 12px;display:flex;align-items:center;justify-content:space-between;font-size:7px;font-weight:750;letter-spacing:1.7px;cursor:pointer}
+.alcohol-detail-toggle b{font-size:17px;font-weight:400;color:var(--acid);line-height:1;transition:transform .18s ease}
+.alcohol-detail-toggle b.open{transform:rotate(180deg)}
+.alcohol-category-list{padding:0 9px 9px;display:flex;flex-direction:column;gap:7px}
+.alcohol-category-row{min-height:46px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:#070908;display:grid;grid-template-columns:1fr;align-items:center;overflow:hidden}
+.alcohol-category-row.selected{grid-template-columns:minmax(0,1fr) 104px;border-color:rgba(207,255,26,.38);background:rgba(207,255,26,.035)}
+.alcohol-category-choice{height:44px;border:0;background:transparent;color:#c9d0c8;display:flex;align-items:center;gap:10px;padding:0 11px;cursor:pointer;text-align:left;font-size:8px;font-weight:700;letter-spacing:1.4px}
+.alcohol-category-choice i{width:18px;height:18px;border:1px solid rgba(255,255,255,.22);border-radius:5px;display:grid;place-items:center;font-style:normal;font-size:11px;color:var(--acid)}
+.alcohol-category-row.selected .alcohol-category-choice i{border-color:var(--acid);background:rgba(207,255,26,.08)}
+.alcohol-amount{height:44px;border-left:1px solid rgba(255,255,255,.08);display:grid;grid-template-columns:1fr 42px;align-items:center}
+.alcohol-amount>span{font-size:6px;letter-spacing:1px;color:#838d84;text-align:right;padding-right:7px}
+.alcohol-amount input{width:42px;height:100%;border:0;border-left:1px solid rgba(255,255,255,.06);outline:0;background:#050706;color:var(--acid);text-align:center;font-weight:800;font-size:15px;font-variant-numeric:tabular-nums}
+.alcohol-amount input::-webkit-outer-spin-button,.alcohol-amount input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.alcohol-amount input[type=number]{-moz-appearance:textfield}
+@media (max-width:380px){
+  .alcohol-category-row.selected{grid-template-columns:minmax(0,1fr) 96px}
+  .alcohol-amount{grid-template-columns:1fr 38px}
+  .alcohol-amount input{width:38px}
+}

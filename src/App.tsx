@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { deleteEntry, getAllEntries, getEntry, saveEntry } from './storage'
-import type { AlcoholStatus, DailyEntry } from './types'
+import type { AlcoholCategory, AlcoholStatus, DailyEntry } from './types'
 import ritualNebula from './assets/ritual-nebula.png'
 import ritualMoon from './assets/ritual-moon.png'
 
@@ -180,6 +180,9 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
     return new Date(y,m-1,d)
   }, [date])
   const [alcohol,setAlcohol] = useState<AlcoholStatus>(null)
+  const [alcoholDetailOpen,setAlcoholDetailOpen] = useState(false)
+  const [alcoholCategories,setAlcoholCategories] = useState<AlcoholCategory[]>([])
+  const [alcoholAmounts,setAlcoholAmounts] = useState<Partial<Record<AlcoholCategory, number>>>({})
   const [trained,setTrained] = useState(false)
   const [trainingMinutes,setTrainingMinutes] = useState<number | undefined>()
   const [trainingType,setTrainingType] = useState('Fuerza')
@@ -195,13 +198,27 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
     void getEntry(date).then(e => {
       setHasExistingRecord(Boolean(e))
       if (!e) return
-      setAlcohol(e.alcohol); setTrained(e.trained); setTrainingMinutes(e.trainingMinutes); setTrainingType(e.trainingType || 'Fuerza')
+      setAlcohol(e.alcohol); setAlcoholCategories(e.alcoholCategories || []); setAlcoholAmounts(e.alcoholAmounts || {}); setAlcoholDetailOpen(e.alcohol === 'alcohol'); setTrained(e.trained); setTrainingMinutes(e.trainingMinutes); setTrainingType(e.trainingType || 'Fuerza')
       setEnergy(e.energy); setMood(e.mood); setSleep(e.sleep); setWeightKg(e.weightKg); setNotes(e.notes || '')
     })
   }, [date])
 
+  function toggleAlcoholCategory(category: AlcoholCategory) {
+    setAlcoholCategories(current => {
+      if (current.includes(category)) {
+        setAlcoholAmounts(amounts => {
+          const next = { ...amounts }
+          delete next[category]
+          return next
+        })
+        return current.filter(item => item !== category)
+      }
+      return [...current, category]
+    })
+  }
+
   async function handleSave() {
-    const entry: DailyEntry = { date, alcohol, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, energy, mood, sleep, weightKg, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
+    const entry: DailyEntry = { date, alcohol, alcoholCategories: alcohol === 'alcohol' ? alcoholCategories : undefined, alcoholAmounts: alcohol === 'alcohol' ? alcoholAmounts : undefined, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, energy, mood, sleep, weightKg, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
     await saveEntry(entry)
     setHasExistingRecord(true)
     setSaved(true)
@@ -237,9 +254,47 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
       <section className="entry-card">
         <div className="section-title"><BottleIcon/><span>ALCOHOL</span></div>
         <div className="choice-grid">
-          <button className={`choice ${alcohol==='none'?'selected':''}`} onClick={()=>setAlcohol('none')}><BottleIcon active/><span>SIN ALCOHOL</span></button>
-          <button className={`choice ${alcohol==='alcohol'?'danger-selected':''}`} onClick={()=>setAlcohol('alcohol')}><CanIcon active/><span>HE BEBIDO</span></button>
+          <button className={`choice ${alcohol==='none'?'selected':''}`} onClick={()=>{setAlcohol('none');setAlcoholDetailOpen(false)}}><BottleIcon active/><span>SIN ALCOHOL</span></button>
+          <button className={`choice ${alcohol==='alcohol'?'danger-selected':''}`} onClick={()=>{setAlcohol('alcohol');setAlcoholDetailOpen(true)}}><CanIcon active/><span>HE BEBIDO</span></button>
         </div>
+
+        {alcohol === 'alcohol' && <div className="alcohol-detail">
+          <button className="alcohol-detail-toggle" onClick={()=>setAlcoholDetailOpen(v=>!v)} aria-expanded={alcoholDetailOpen}>
+            <span>DETALLE DE CONSUMO</span>
+            <b className={alcoholDetailOpen ? 'open' : ''}>⌄</b>
+          </button>
+
+          {alcoholDetailOpen && <div className="alcohol-category-list">
+            {([
+              ['beer','CERVEZA'],
+              ['wine','VINO'],
+              ['spirits','LICORES']
+            ] as Array<[AlcoholCategory,string]>).map(([category,label]) => {
+              const selected = alcoholCategories.includes(category)
+              return <div className={`alcohol-category-row ${selected ? 'selected' : ''}`} key={category}>
+                <button className="alcohol-category-choice" onClick={()=>toggleAlcoholCategory(category)}>
+                  <i aria-hidden="true">{selected ? '✓' : ''}</i>
+                  <span>{label}</span>
+                </button>
+                {selected && <label className="alcohol-amount">
+                  <span>Nº APROX.</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    max="99"
+                    step="1"
+                    placeholder="—"
+                    value={alcoholAmounts[category] ?? ''}
+                    onChange={(e:any)=>setAlcoholAmounts(current => ({...current,[category]:e.target.value === '' ? undefined : Number(e.target.value)}))}
+                    aria-label={`Cantidad aproximada de ${label.toLowerCase()}`}
+                  />
+                </label>}
+              </div>
+            })}
+          </div>}
+        </div>}
+
         <p className="microcopy">{alcohol===null?'Sin registrar': alcohol==='none'?'Día marcado sin consumo de alcohol.':'Día marcado con consumo de alcohol.'}</p>
       </section>
 
