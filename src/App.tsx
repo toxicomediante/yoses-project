@@ -338,6 +338,178 @@ function IntervalTimerScreen({onBack}:{onBack:()=>void}) {
 }
 
 
+
+type HistoryRange = '30' | '90' | 'all'
+
+function parseLocalDate(value:string) {
+  const [y,m,d]=value.split('-').map(Number)
+  return new Date(y,m-1,d)
+}
+
+function shortDate(value:string) {
+  const date=parseLocalDate(value)
+  return `${date.getDate()} ${ES_MONTHS[date.getMonth()].slice(0,3)}`
+}
+
+function HistoryLineChart({
+  series,
+  yMin,
+  yMax,
+  emptyText
+}:{
+  series:Array<{label:string;points:Array<{date:string;value:number}>}>
+  yMin?:number
+  yMax?:number
+  emptyText:string
+}) {
+  const all=series.flatMap(s=>s.points.map(p=>p.value))
+  if(!all.length) return <div className="history-empty">{emptyText}</div>
+
+  const width=320, height=150, padX=20, padTop=12, padBottom=26
+  const min=yMin ?? Math.min(...all)
+  const max=yMax ?? Math.max(...all)
+  const spread=Math.max(.1,max-min)
+  const dates=[...new Set(series.flatMap(s=>s.points.map(p=>p.date)))].sort()
+  const xFor=(date:string)=>{
+    const i=dates.indexOf(date)
+    return dates.length<=1 ? width/2 : padX + i*((width-padX*2)/(dates.length-1))
+  }
+  const yFor=(value:number)=>padTop + (max-value)/spread*(height-padTop-padBottom)
+
+  return <div className="history-chart-wrap">
+    <svg className="history-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
+      {[0,.25,.5,.75,1].map((n,i)=><line key={i} x1={padX} x2={width-padX} y1={padTop+n*(height-padTop-padBottom)} y2={padTop+n*(height-padTop-padBottom)} className="history-gridline"/>)}
+      {series.map((s,sIndex)=>{
+        if(!s.points.length) return null
+        const d=s.points.map((p,i)=>`${i?'L':'M'} ${xFor(p.date)} ${yFor(p.value)}`).join(' ')
+        return <g key={s.label} className={`history-series series-${sIndex}`}>
+          <path d={d}/>
+          {s.points.map(p=><circle key={p.date} cx={xFor(p.date)} cy={yFor(p.value)} r="3"><title>{`${s.label}: ${p.value} · ${shortDate(p.date)}`}</title></circle>)}
+        </g>
+      })}
+    </svg>
+    <div className="history-axis"><span>{shortDate(dates[0])}</span><span>{shortDate(dates[dates.length-1])}</span></div>
+    {series.length>1&&<div className="history-legend">{series.map((s,i)=><span className={`series-${i}`} key={s.label}><i/>{s.label}</span>)}</div>}
+  </div>
+}
+
+function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) {
+  const [range,setRange]=useState<HistoryRange>('30')
+  const [strengthExercise,setStrengthExercise]=useState('')
+  const sorted=useMemo(()=>[...entries].sort((a,b)=>a.date.localeCompare(b.date)),[entries])
+
+  const filtered=useMemo(()=>{
+    if(range==='all') return sorted
+    const days=Number(range)
+    const cutoff=new Date()
+    cutoff.setHours(0,0,0,0)
+    cutoff.setDate(cutoff.getDate()-(days-1))
+    return sorted.filter(entry=>parseLocalDate(entry.date)>=cutoff)
+  },[sorted,range])
+
+  const weightPoints=filtered.filter(e=>typeof e.weightKg==='number').map(e=>({date:e.date,value:e.weightKg as number}))
+  const wellnessSeries=[
+    {label:'ENERGÍA',points:filtered.filter(e=>typeof e.energy==='number').map(e=>({date:e.date,value:e.energy as number}))},
+    {label:'ÁNIMO',points:filtered.filter(e=>typeof e.mood==='number').map(e=>({date:e.date,value:e.mood as number}))},
+    {label:'SUEÑO',points:filtered.filter(e=>typeof e.sleep==='number').map(e=>({date:e.date,value:e.sleep as number}))}
+  ]
+
+  const registered=filtered.filter(e=>e.alcohol!==null || e.trained || e.weightKg!==undefined || e.energy!==undefined || e.mood!==undefined || e.sleep!==undefined)
+  const noAlcohol=filtered.filter(e=>e.alcohol==='none').length
+  const alcohol=filtered.filter(e=>e.alcohol==='alcohol').length
+  const training=filtered.filter(e=>e.trained).length
+  const registeredDays=registered.length
+  const denom=Math.max(1,registeredDays)
+
+  const exerciseNames=useMemo(()=>Array.from(new Set(sorted.flatMap(e=>(e.exercises||[]).map(ex=>ex.name)).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'es')),[sorted])
+  useEffect(()=>{
+    if(!strengthExercise && exerciseNames.length) setStrengthExercise(exerciseNames[0])
+    else if(strengthExercise && !exerciseNames.includes(strengthExercise)) setStrengthExercise(exerciseNames[0]||'')
+  },[exerciseNames,strengthExercise])
+
+  const strengthData=sorted.flatMap(entry=>(entry.exercises||[])
+    .filter(ex=>ex.name===strengthExercise)
+    .map(ex=>{
+      const reps=(ex.sets||[]).reduce((sum,set)=>sum+(set.reps||0),0)
+      const load=ex.loadKg||0
+      return {date:entry.date,load,volume:load*reps,reps}
+    }))
+
+  const latestWeight=weightPoints.at(-1)?.value
+  const firstWeight=weightPoints[0]?.value
+  const weightDelta=latestWeight!==undefined&&firstWeight!==undefined ? latestWeight-firstWeight : undefined
+  const maxHabit=Math.max(1,noAlcohol,alcohol,training)
+
+  return <main className="app-shell">
+    <section className="phone-surface history-screen">
+      <div className="header-nebula history-nebula" style={{backgroundImage:`url(${ritualNebula})`}} aria-hidden="true" />
+      <header className="topbar detail-topbar history-topbar">
+        <button className="icon-button" onClick={onBack} aria-label="Volver"><BackIcon/></button>
+        <div className="brand mini detail-brand"><span>YOSE'S</span><small>PROJECT</small></div>
+        <div className="topbar-spacer" aria-hidden="true" />
+      </header>
+
+      <div className="detail-ritual-wrap history-ritual-wrap"><RitualHeader compact/></div>
+      <div className="detail-heading history-heading">
+        <h1>HISTÓRICO</h1>
+        <p>EVOLUCIÓN · PATRONES · PROGRESO REAL</p>
+      </div>
+
+      <div className="history-range">
+        <button className={range==='30'?'active':''} onClick={()=>setRange('30')}>30 DÍAS</button>
+        <button className={range==='90'?'active':''} onClick={()=>setRange('90')}>90 DÍAS</button>
+        <button className={range==='all'?'active':''} onClick={()=>setRange('all')}>TODO</button>
+      </div>
+
+      <section className="entry-card history-card">
+        <div className="history-card-head">
+          <div><span>PESO</span><strong>{latestWeight!==undefined?`${latestWeight.toFixed(1)} KG`:'—'}</strong></div>
+          {weightDelta!==undefined&&weightPoints.length>1&&<em>{weightDelta>0?'+':''}{weightDelta.toFixed(1)} KG</em>}
+        </div>
+        <HistoryLineChart series={[{label:'PESO',points:weightPoints}]} emptyText="Aún no hay suficientes registros de peso."/>
+      </section>
+
+      <section className="entry-card history-card">
+        <div className="history-card-head"><div><span>ESTADO DEL DÍA</span><strong>ESCALA 1–5</strong></div></div>
+        <HistoryLineChart series={wellnessSeries} yMin={1} yMax={5} emptyText="Registra energía, ánimo o sueño para empezar a ver la tendencia."/>
+      </section>
+
+      <section className="entry-card history-card">
+        <div className="history-card-head"><div><span>HÁBITOS</span><strong>{registeredDays} DÍAS REGISTRADOS</strong></div></div>
+        {registeredDays ? <div className="habit-bars">
+          <div><label><span>SIN ALCOHOL</span><b>{noAlcohol}</b></label><i><em style={{width:`${noAlcohol/maxHabit*100}%`}}/></i></div>
+          <div><label><span>CON ALCOHOL</span><b>{alcohol}</b></label><i><em style={{width:`${alcohol/maxHabit*100}%`}}/></i></div>
+          <div><label><span>ENTRENAMIENTOS</span><b>{training}</b></label><i><em style={{width:`${training/maxHabit*100}%`}}/></i></div>
+          <div className="habit-percentages">
+            <span><b>{Math.round(noAlcohol/denom*100)}%</b>DÍAS SIN ALCOHOL</span>
+            <span><b>{Math.round(training/denom*100)}%</b>DÍAS CON ENTRENO</span>
+          </div>
+        </div> : <div className="history-empty">Todavía no hay días registrados en este periodo.</div>}
+      </section>
+
+      <section className="entry-card history-card strength-history-card">
+        <div className="history-card-head"><div><span>FUERZA</span><strong>EVOLUCIÓN POR EJERCICIO</strong></div></div>
+        {exerciseNames.length ? <>
+          <label className="history-exercise-select"><span>EJERCICIO</span><select value={strengthExercise} onChange={(e:any)=>setStrengthExercise(e.target.value)}>{exerciseNames.map(name=><option key={name}>{name}</option>)}</select></label>
+          {strengthData.length ? <>
+            <div className="strength-history-metrics">
+              <span><small>ÚLTIMA CARGA</small><b>{strengthData.at(-1)?.load || 0} KG</b></span>
+              <span><small>MEJOR VOLUMEN</small><b>{Math.round(Math.max(...strengthData.map(d=>d.volume)))} KG</b></span>
+              <span><small>ÚLTIMAS REPS</small><b>{strengthData.at(-1)?.reps || 0}</b></span>
+            </div>
+            <HistoryLineChart series={[{label:'CARGA',points:strengthData.map(d=>({date:d.date,value:d.load}))}]} emptyText="Aún no hay datos de carga."/>
+            <div className="volume-caption">VOLUMEN POR SESIÓN · KG × REPETICIONES TOTALES</div>
+            <HistoryLineChart series={[{label:'VOLUMEN',points:strengthData.map(d=>({date:d.date,value:d.volume}))}]} emptyText="Aún no hay datos de volumen."/>
+          </> : <div className="history-empty">No hay sesiones registradas para este ejercicio.</div>}
+        </> : <div className="history-empty">Vuelca entrenamientos de fuerza para empezar a ver progresión.</div>}
+      </section>
+
+      <button className="secondary-button" onClick={onBack}>VOLVER AL CALENDARIO</button>
+      <footer>LOS DATOS NO JUZGAN. ENSEÑAN EL PATRÓN.</footer>
+    </section>
+  </main>
+}
+
 function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,onDumped:()=>void}) {
   const [exercises,setExercises] = useState<TrainingExercise[]>([createStrengthExercise()])
   const [savedDraft,setSavedDraft] = useState(false)
@@ -488,7 +660,7 @@ function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
-  const [screen,setScreen] = useState<'home'|'timer'|'strength'>('home')
+  const [screen,setScreen] = useState<'home'|'timer'|'strength'|'history'>('home')
   const homeSwipeStart = useRef<{x:number,y:number} | null>(null)
 
   async function refresh() {
@@ -528,6 +700,10 @@ function App() {
 
   if (screen === 'strength') {
     return <StrengthLogScreen date={localIsoDate(today)} onBack={()=>setScreen('home')} onDumped={()=>void refresh()} />
+  }
+
+  if (screen === 'history') {
+    return <HistoryScreen entries={entries} onBack={()=>setScreen('home')} />
   }
 
   const year = cursor.getFullYear(); const month = cursor.getMonth()
@@ -589,7 +765,7 @@ function App() {
       </section>
 
       <button className="primary-button" onClick={()=>setSelectedDate(localIsoDate(today))}>REGISTRAR HOY <span>→</span></button>
-      <button className="secondary-button" onClick={()=>alert('Histórico: siguiente pantalla del vertical slice.')}>VER HISTÓRICO</button>
+      <button className="secondary-button" onClick={()=>setScreen('history')}>VER HISTÓRICO</button>
       <div className="home-swipe-nav"><button className="swipe-hint" onClick={()=>setScreen('strength')}>DATOS DE ENTRENAMIENTO →</button><button className="swipe-hint" onClick={()=>setScreen('timer')}>← INTERVALÓMETRO</button></div>
       <footer>DISCIPLINA HOY. UN MAÑANA DIFERENTE.</footer>
 
