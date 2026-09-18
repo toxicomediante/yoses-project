@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/prepare-og.mjs && tsc -b && vite build",
     "preview": "vite preview",
     "cap:sync": "npx cap sync android",
     "cap:add:android": "npx cap add android",
@@ -23,6 +23,7 @@
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@capacitor/cli": "latest",
-    "@capacitor/android": "latest"
+    "@capacitor/android": "latest",
+    "sharp": "^0.34.3"
   }
 }
