@@ -186,6 +186,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
   const [trained,setTrained] = useState(false)
   const [trainingMinutes,setTrainingMinutes] = useState<number | undefined>()
   const [trainingType,setTrainingType] = useState('Fuerza')
+  const [exercises,setExercises] = useState<string[]>([''])
   const [energy,setEnergy] = useState<number | undefined>()
   const [mood,setMood] = useState<number | undefined>()
   const [sleep,setSleep] = useState<number | undefined>()
@@ -198,7 +199,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
     void getEntry(date).then(e => {
       setHasExistingRecord(Boolean(e))
       if (!e) return
-      setAlcohol(e.alcohol); setAlcoholCategories(e.alcoholCategories || []); setAlcoholAmounts(e.alcoholAmounts || {}); setAlcoholDetailOpen(e.alcohol === 'alcohol'); setTrained(e.trained); setTrainingMinutes(e.trainingMinutes); setTrainingType(e.trainingType || 'Fuerza')
+      setAlcohol(e.alcohol); setAlcoholCategories(e.alcoholCategories || []); setAlcoholAmounts(e.alcoholAmounts || {}); setAlcoholDetailOpen(e.alcohol === 'alcohol'); setTrained(e.trained); setTrainingMinutes(e.trainingMinutes); setTrainingType(e.trainingType || 'Fuerza'); setExercises(e.exercises?.length ? e.exercises.map(item => item.name) : [''])
       setEnergy(e.energy); setMood(e.mood); setSleep(e.sleep); setWeightKg(e.weightKg); setNotes(e.notes || '')
     })
   }, [date])
@@ -218,7 +219,8 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
   }
 
   async function handleSave() {
-    const entry: DailyEntry = { date, alcohol, alcoholCategories: alcohol === 'alcohol' ? alcoholCategories : undefined, alcoholAmounts: alcohol === 'alcohol' ? alcoholAmounts : undefined, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, energy, mood, sleep, weightKg, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
+    const cleanExercises = exercises.map(name => name.trim()).filter(Boolean).map(name => ({ name }))
+    const entry: DailyEntry = { date, alcohol, alcoholCategories: alcohol === 'alcohol' ? alcoholCategories : undefined, alcoholAmounts: alcohol === 'alcohol' ? alcoholAmounts : undefined, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, exercises: trained && cleanExercises.length ? cleanExercises : undefined, energy, mood, sleep, weightKg, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
     await saveEntry(entry)
     setHasExistingRecord(true)
     setSaved(true)
@@ -302,9 +304,36 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
         <div className="section-title"><DumbbellIcon/><span>ENTRENAMIENTO</span></div>
         <button className={`training-toggle ${trained?'on':''}`} onClick={()=>setTrained(v=>!v)}><DumbbellIcon active/><span>{trained?'HE ENTRENADO HOY':'SIN ENTRENAMIENTO'}</span><b>{trained?'✓':'+'}</b></button>
         {trained && <div className="training-fields">
-          <label>Tipo<select value={trainingType} onChange={(e:any)=>setTrainingType(e.target.value)}><option>Fuerza</option><option>Boxeo</option><option>Cardio</option><option>Movilidad</option><option>Otro</option></select></label>
-          <label>Duración<input type="number" min="1" max="600" placeholder="min" value={trainingMinutes ?? ''} onChange={(e:any)=>setTrainingMinutes(e.target.value ? Number(e.target.value) : undefined)}/></label>
-          <div className="exercise-placeholder"><strong>DETALLE DE EJERCICIOS</strong><span>El catálogo completo de ejercicios, series, repeticiones, peso y RPE entra en la siguiente iteración.</span></div>
+          <label>TIPO<select value={trainingType} onChange={(e:any)=>setTrainingType(e.target.value)}><option>Fuerza</option><option>Boxeo</option><option>Cardio</option><option>Movilidad</option><option>Otro</option></select></label>
+          <label>DURACIÓN (MIN)<input type="number" min="1" max="600" placeholder="min" value={trainingMinutes ?? ''} onChange={(e:any)=>setTrainingMinutes(e.target.value ? Number(e.target.value) : undefined)}/></label>
+
+          <div className="exercise-list">
+            <div className="exercise-list-heading">
+              <strong>EJERCICIOS</strong>
+              <span>El detalle de series, repeticiones, peso y RPE se añadirá después.</span>
+            </div>
+
+            {exercises.map((exercise,index) => <div className="exercise-row" key={index}>
+              <label>
+                <span>EJERCICIO {index + 1}</span>
+                <input
+                  type="text"
+                  placeholder="Nombre del ejercicio"
+                  value={exercise}
+                  onChange={(e:any)=>setExercises(current => current.map((item,i)=>i===index ? e.target.value : item))}
+                />
+              </label>
+              {exercises.length > 1 && <button
+                className="remove-exercise"
+                onClick={()=>setExercises(current => current.filter((_,i)=>i!==index))}
+                aria-label={`Eliminar ejercicio ${index + 1}`}
+              >×</button>}
+            </div>)}
+
+            <button className="add-exercise-button" onClick={()=>setExercises(current => [...current,''])}>
+              <span>+</span> AÑADIR EJERCICIO
+            </button>
+          </div>
         </div>}
       </section>
 

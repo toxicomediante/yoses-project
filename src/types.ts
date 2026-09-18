@@ -1,6 +1,10 @@
 export type AlcoholStatus = 'none' | 'alcohol' | null
 export type AlcoholCategory = 'beer' | 'wine' | 'spirits'
 
+export interface TrainingExercise {
+  name: string
+}
+
 export interface DailyEntry {
   date: string
   alcohol: AlcoholStatus
@@ -9,6 +13,7 @@ export interface DailyEntry {
   trained: boolean
   trainingMinutes?: number
   trainingType?: string
+  exercises?: TrainingExercise[]
   energy?: number
   mood?: number
   sleep?: number
