@@ -14,7 +14,7 @@ on:
       - '.github/workflows/android.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-android:
@@ -53,3 +53,13 @@ jobs:
           name: yoses-project-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Publish direct test APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk YOSES-PROJECT-debug.apk
+          if ! gh release view test-build >/dev/null 2>&1; then
+            gh release create test-build --target main --prerelease --title "YOSE'S PROJECT · Test build" --notes "APK de pruebas de YOSE'S PROJECT. Esta release se actualiza con la última compilación Android válida."
+          fi
+          gh release upload test-build YOSES-PROJECT-debug.apk --clobber
