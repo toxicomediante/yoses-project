@@ -131,7 +131,7 @@ function App() {
       <section className="metrics-grid">
         <article><strong>{noAlcoholCount}</strong><span>DÍAS SIN<br/>ALCOHOL</span></article>
         <article><strong>{trainingCount}</strong><span>SESIONES DE<br/>ENTRENO</span></article>
-        <article><small>RACHA ACTUAL</small><strong>{streak}</strong><span>DÍAS</span></article>
+        <article><strong>{streak}</strong><span>RACHA SIN<br/>ALCOHOL</span></article>
       </section>
 
       <section className="calendar-card">
