@@ -54,7 +54,8 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;ba
 @media (max-width:520px){.app-shell{padding:0}.phone-surface{width:100%;min-height:100vh;border-radius:0;border-left:0;border-right:0;padding-left:16px;padding-right:16px}.hero-copy.left{left:18px}.hero-copy.right{right:18px}.metrics-grid article{min-height:88px}.metrics-grid strong{font-size:34px}.calendar-card{padding:12px 8px}.calendar-grid,.weekdays{gap:3px}.day-number{font-size:13px}.mini-icon{width:13px;height:13px}.rating-row{grid-template-columns:65px 1fr 28px}.rating-dots{gap:5px}.rating-dots button{width:20px;height:20px}}
 @media (prefers-reduced-motion: reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
 
-.home-screen .topbar,.home-screen .hero-copy,.home-screen .month-title-row,.day-screen .topbar,.day-screen .detail-heading{position:relative;z-index:3}
+.home-screen .topbar,.home-screen .month-title-row,.day-screen .topbar,.day-screen .detail-heading{position:relative;z-index:3}
+.home-screen .hero-copy{position:absolute;z-index:3}
 
 .home-screen .ritual{margin-top:-52px}
-.home-screen .month-title-row{margin-top:-8px}
+.home-screen .month-title-row{margin-top:32px}
