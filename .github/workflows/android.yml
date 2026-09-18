@@ -35,11 +35,22 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Remove generated APKs from web assets
+        run: rm -f public/downloads/*.apk
+
       - name: Install dependencies
         run: npm install
 
       - name: Prepare Android project
         run: npm run android:prepare
+
+      - name: Guard against recursive APK bundling
+        run: |
+          if find dist -type f -name '*.apk' | grep -q .; then
+            echo "ERROR: an APK was copied into dist and would be bundled inside the next APK."
+            find dist -type f -name '*.apk' -print
+            exit 1
+          fi
 
       - name: Build debug APK
         run: |
@@ -64,14 +75,3 @@ jobs:
           fi
           gh release upload test-build YOSES-PROJECT-debug.apk --clobber
 
-      - name: Publish APK to GitHub Pages
-        run: |
-          mkdir -p public/downloads
-          cp android/app/build/outputs/apk/debug/app-debug.apk public/downloads/YOSES-PROJECT-debug.apk
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/downloads/YOSES-PROJECT-debug.apk
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: publish Android test APK"
-            git push origin HEAD:main
-          fi
