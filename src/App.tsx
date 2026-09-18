@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getAllEntries, getEntry, saveEntry } from './storage'
+import { deleteEntry, getAllEntries, getEntry, saveEntry } from './storage'
 import type { AlcoholStatus, DailyEntry } from './types'
 import ritualNebula from './assets/ritual-nebula.png'
 import ritualMoon from './assets/ritual-moon.png'
@@ -34,6 +34,7 @@ function DumbbellIcon({active=false}:{active?:boolean}) {
 }
 function GearIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path d="M12 8.5A3.5 3.5 0 1 0 12 15.5A3.5 3.5 0 0 0 12 8.5Z"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a8 8 0 0 0-1.8-1L14.4 3h-4.8l-.4 3.1a8 8 0 0 0-1.8 1l-2.4-1-2 3.4L5 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 1.8 1l.4 3.1h4.8l.4-3.1a8 8 0 0 0 1.8-1l2.4 1 2-3.4L19 13a7 7 0 0 0 0-1Z"/></svg>}
 function BackIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path d="m15 5-7 7 7 7"/></svg>}
+function TrashIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>}
 
 function RitualHeader({compact=false}:{compact?:boolean}) {
   return <div className={`ritual ${compact ? 'compact' : ''}`} aria-hidden="true">
@@ -186,9 +187,11 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
   const [sleep,setSleep] = useState<number | undefined>()
   const [notes,setNotes] = useState('')
   const [saved,setSaved] = useState(false)
+  const [hasExistingRecord,setHasExistingRecord] = useState(false)
 
   useEffect(() => {
     void getEntry(date).then(e => {
+      setHasExistingRecord(Boolean(e))
       if (!e) return
       setAlcohol(e.alcohol); setTrained(e.trained); setTrainingMinutes(e.trainingMinutes); setTrainingType(e.trainingType || 'Fuerza')
       setEnergy(e.energy); setMood(e.mood); setSleep(e.sleep); setNotes(e.notes || '')
@@ -198,8 +201,17 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
   async function handleSave() {
     const entry: DailyEntry = { date, alcohol, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, energy, mood, sleep, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
     await saveEntry(entry)
+    setHasExistingRecord(true)
     setSaved(true)
     window.setTimeout(()=>setSaved(false),1500)
+  }
+
+  async function handleDelete() {
+    if (!hasExistingRecord) return
+    const confirmed = window.confirm('¿Eliminar el registro de este día? Esta acción no se puede deshacer.')
+    if (!confirmed) return
+    await deleteEntry(date)
+    onBack()
   }
 
   return <main className="app-shell">
@@ -207,10 +219,14 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
       <div className="header-nebula compact" style={{backgroundImage:`url(${ritualNebula})`}} aria-hidden="true" />
       <header className="topbar detail-topbar">
         <button className="icon-button" onClick={onBack} aria-label="Volver"><BackIcon/></button>
-        <div className="brand mini"><span>YOSE'S</span><small>PROJECT</small></div>
-        <div className="topbar-spacer" />
+        <div className="brand mini detail-brand"><span>YOSE'S</span><small>PROJECT</small></div>
+        <button className="icon-button trash-icon-button" onClick={handleDelete} disabled={!hasExistingRecord} aria-label="Eliminar registro"><TrashIcon/></button>
       </header>
-      <RitualHeader compact/>
+
+      <div className="detail-ritual-wrap">
+        <RitualHeader compact/>
+      </div>
+
       <div className="detail-heading">
         <h1>{ES_DAYS_LONG[parsed.getDay()]} / {parsed.getDate()} {ES_MONTHS[parsed.getMonth()]}</h1>
         <p>REGISTRA EL DÍA. CONSTRUYE EL PATRÓN.</p>
@@ -248,6 +264,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
       </section>
 
       <button className="primary-button" onClick={handleSave}>{saved?'GUARDADO ✓':'GUARDAR REGISTRO'} <span>{saved?'':'→'}</span></button>
+      <button className="trash-button" onClick={handleDelete} disabled={!hasExistingRecord}><TrashIcon/><span>PAPELERA</span></button>
       <button className="secondary-button" onClick={onBack}>VOLVER AL CALENDARIO</button>
       <footer>DISCIPLINA HOY. UN MAÑANA DIFERENTE.</footer>
     </section>

@@ -52,3 +52,17 @@ export async function saveEntry(entry: DailyEntry): Promise<void> {
     tx.onerror = () => reject(tx.error)
   })
 }
+
+
+export async function deleteEntry(date: string): Promise<void> {
+  const db = await openDb()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    tx.objectStore(STORE_NAME).delete(date)
+    tx.oncomplete = () => {
+      db.close()
+      resolve()
+    }
+    tx.onerror = () => reject(tx.error)
+  })
+}
