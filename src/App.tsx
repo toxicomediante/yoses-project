@@ -255,14 +255,19 @@ function IntervalTimerScreen({onBack}:{onBack:()=>void}) {
       onTouchEnd={(e:any)=>{const start=swipeStart.current;if(!start)return;const t=e.changedTouches[0];const dx=t.clientX-start.x;const dy=t.clientY-start.y;if(dx>70&&Math.abs(dx)>Math.abs(dy)*1.25)onBack();swipeStart.current=null}}
     >
       <div className="header-nebula timer-nebula" style={{backgroundImage:`url(${ritualNebula})`}} aria-hidden="true" />
-      <header className="topbar">
-        <div className="brand"><span>YOSE'S</span><small>PROJECT</small></div>
+      <header className="topbar detail-topbar timer-topbar">
         <button className="icon-button" onClick={onBack} aria-label="Volver al calendario"><BackIcon/></button>
+        <div className="brand mini detail-brand timer-brand"><span>YOSE'S</span><small>PROJECT</small></div>
+        <div className="topbar-spacer" aria-hidden="true" />
       </header>
 
-      <div className="timer-hero">
+      <div className="detail-ritual-wrap timer-ritual-wrap">
         <RitualHeader compact/>
-        <div className="timer-heading"><TimerIcon/><div><h1>INTERVALÓMETRO</h1><p>FUERZA · INTERVALOS · CONTROL</p></div></div>
+      </div>
+
+      <div className="detail-heading timer-detail-heading">
+        <div className="timer-heading-inline"><TimerIcon/><h1>INTERVALÓMETRO</h1></div>
+        <p>FUERZA · INTERVALOS · CONTROL</p>
       </div>
 
       <section className={`timer-display-card phase-${phase}`}>

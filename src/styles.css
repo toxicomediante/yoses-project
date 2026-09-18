@@ -163,3 +163,21 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;ba
   .timer-clock{font-size:43px}
   .timer-heading h1{font-size:20px}
 }
+
+.topbar-spacer{width:44px;height:44px;flex:0 0 44px}
+.timer-topbar{min-height:54px;position:relative;z-index:4}
+.timer-brand{pointer-events:none}
+.timer-ritual-wrap{position:relative;z-index:2;height:122px;margin:4px 0 8px;display:flex;align-items:center;justify-content:center}
+.timer-screen .timer-ritual-wrap .ritual.compact{height:116px;width:100%;margin:0}
+.timer-detail-heading{position:relative;z-index:3;text-align:center;margin:0 0 18px;padding:0 8px}
+.timer-heading-inline{display:flex;align-items:center;justify-content:center;gap:10px}
+.timer-heading-inline>.line-icon{width:22px;height:22px;color:var(--acid);flex:0 0 auto}
+.timer-detail-heading h1{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:22px;line-height:1;letter-spacing:1.5px}
+.timer-detail-heading p{margin:8px 0 0;font-size:7px;letter-spacing:2.2px;color:#9da69d}
+.timer-screen .timer-hero{margin-top:0}
+@media (max-width:520px){
+  .timer-ritual-wrap{height:114px;margin:2px 0 8px}
+  .timer-screen .timer-ritual-wrap .ritual.compact{height:108px}
+  .timer-detail-heading h1{font-size:19px;letter-spacing:1.2px}
+  .timer-detail-heading p{letter-spacing:2px}
+}
