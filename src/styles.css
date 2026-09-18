@@ -26,12 +26,12 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;ba
 .brand{display:flex;flex-direction:column;line-height:.9}.brand span{font-weight:950;font-size:28px;letter-spacing:-1.6px;transform:skew(-4deg);text-shadow:0 0 18px rgba(255,255,255,.08)}.brand small{font-size:11px;letter-spacing:7px;margin-top:8px;color:#d8ded6}.brand.mini span{font-size:20px}.brand.mini small{font-size:8px;letter-spacing:5px}
 .icon-button{width:44px;height:44px;border-radius:13px;border:1px solid var(--line);background:rgba(14,17,15,.8);display:grid;place-items:center;cursor:pointer}.line-icon{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .hero-copy{position:absolute;top:91px;z-index:2;font-size:8px;line-height:1.5;letter-spacing:2.2px;color:#9da69d}.hero-copy em{font-style:normal;color:#dfe5dc}.hero-copy.left{left:24px}.hero-copy.right{right:24px;text-align:right}
-.header-nebula{position:absolute;z-index:0;top:0;left:0;right:0;height:310px;background-position:center top;background-repeat:no-repeat;background-size:cover;opacity:.58;filter:brightness(.62) saturate(.82) contrast(1.06);pointer-events:none;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 62%,rgba(0,0,0,.78) 76%,rgba(0,0,0,.28) 90%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,#000 62%,rgba(0,0,0,.78) 76%,rgba(0,0,0,.28) 90%,transparent 100%)}
-.header-nebula:after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 46%,rgba(207,255,26,.10),transparent 25%),linear-gradient(180deg,rgba(4,6,5,.02) 0%,rgba(4,6,5,.08) 54%,rgba(4,6,5,.9) 100%)}
-.header-nebula.compact{height:240px;opacity:.48}
+.header-nebula{position:absolute;z-index:0;top:0;left:0;right:0;height:238px;background-position:center top;background-repeat:no-repeat;background-size:100% auto;opacity:.58;filter:brightness(.62) saturate(.82) contrast(1.06);pointer-events:none;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 48%,rgba(0,0,0,.84) 62%,rgba(0,0,0,.34) 80%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,#000 48%,rgba(0,0,0,.84) 62%,rgba(0,0,0,.34) 80%,transparent 100%)}
+.header-nebula:after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,rgba(207,255,26,.09),transparent 24%),linear-gradient(180deg,rgba(4,6,5,.02) 0%,rgba(4,6,5,.06) 48%,rgba(4,6,5,.88) 100%)}
+.header-nebula.compact{height:188px;opacity:.46}
 
-.ritual{height:154px;margin-top:-22px;position:relative;display:grid;place-items:center;pointer-events:none;isolation:isolate;overflow:visible;z-index:1}
-.ritual.compact{height:114px;margin-top:-34px;margin-bottom:-16px}
+.ritual{height:140px;margin-top:-20px;position:relative;display:grid;place-items:center;pointer-events:none;isolation:isolate;overflow:visible;z-index:1}
+.ritual.compact{height:100px;margin-top:-32px;margin-bottom:-16px}
 .ritual svg{position:relative;z-index:1;width:100%;height:100%;overflow:visible}
 .ritual-moon-layer{transform-box:view-box;transform-origin:180px 77px;animation:moonSpin 48s linear infinite}
 .ritual-moon-image{opacity:.96;filter:drop-shadow(0 0 20px rgba(190,255,60,.18)) brightness(.86) saturate(.98)}
