@@ -96,10 +96,14 @@ for (const [folder, size] of Object.entries(densities)) {
 
 const valuesDir = path.join(mainRoot, 'res', 'values')
 mkdirSync(valuesDir, { recursive: true })
+
+// Capacitor/Android already creates ic_launcher_background.xml.
+// Replace that resource instead of defining a second color with the same name.
 writeFileSync(
-  path.join(valuesDir, 'launcher_icon_colors.xml'),
+  path.join(valuesDir, 'ic_launcher_background.xml'),
   '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#050706</color>\n</resources>\n'
 )
+rmSync(path.join(valuesDir, 'launcher_icon_colors.xml'), { force: true })
 
 const adaptive = path.join(mainRoot, 'res', 'mipmap-anydpi-v26')
 mkdirSync(adaptive, { recursive: true })
