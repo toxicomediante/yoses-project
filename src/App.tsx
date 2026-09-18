@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getAllEntries, getEntry, saveEntry } from './storage'
 import type { AlcoholStatus, DailyEntry } from './types'
-import ritualNebula from './assets/ritual-nebula.jpg'
+import ritualNebula from './assets/ritual-nebula.png'
 import ritualMoon from './assets/ritual-moon.png'
 
 const ES_MONTHS = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE']
