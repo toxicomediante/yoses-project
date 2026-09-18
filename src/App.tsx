@@ -612,7 +612,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
   const [trained,setTrained] = useState(false)
   const [trainingMinutes,setTrainingMinutes] = useState<number | undefined>()
   const [trainingType,setTrainingType] = useState('Fuerza')
-  const [exercises,setExercises] = useState<string[]>([''])
+  const [exercises,setExercises] = useState<TrainingExercise[]>([{muscleGroup:'Otro',name:'',sets:[]}])
   const [energy,setEnergy] = useState<number | undefined>()
   const [mood,setMood] = useState<number | undefined>()
   const [sleep,setSleep] = useState<number | undefined>()
@@ -625,7 +625,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
     void getEntry(date).then(e => {
       setHasExistingRecord(Boolean(e))
       if (!e) return
-      setAlcohol(e.alcohol); setAlcoholCategories(e.alcoholCategories || []); setAlcoholAmounts(e.alcoholAmounts || {}); setAlcoholNotes(e.alcoholNotes || ''); setAlcoholDetailOpen(e.alcohol === 'alcohol'); setTrained(e.trained); setTrainingMinutes(e.trainingMinutes); setTrainingType(e.trainingType || 'Fuerza'); setExercises(e.exercises?.length ? e.exercises.map(item => item.name) : [''])
+      setAlcohol(e.alcohol); setAlcoholCategories(e.alcoholCategories || []); setAlcoholAmounts(e.alcoholAmounts || {}); setAlcoholNotes(e.alcoholNotes || ''); setAlcoholDetailOpen(e.alcohol === 'alcohol'); setTrained(e.trained); setTrainingMinutes(e.trainingMinutes); setTrainingType(e.trainingType || 'Fuerza'); setExercises(e.exercises?.length ? e.exercises.map(item => ({...item,muscleGroup:item.muscleGroup || 'Otro',sets:Array.isArray(item.sets)?item.sets:[]})) : [{muscleGroup:'Otro',name:'',sets:[]}])
       setEnergy(e.energy); setMood(e.mood); setSleep(e.sleep); setWeightKg(e.weightKg); setNotes(e.notes || '')
     })
   }, [date])
@@ -645,7 +645,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
   }
 
   async function handleSave() {
-    const cleanExercises: TrainingExercise[] = exercises.map(name => name.trim()).filter(Boolean).map(name => ({ muscleGroup:'Otro', name, loadKg:0, sets:[{reps:0}] }))
+    const cleanExercises: TrainingExercise[] = exercises.filter(exercise => exercise.name.trim()).map(exercise => ({...exercise,name:exercise.name.trim(),sets:Array.isArray(exercise.sets)?exercise.sets:[]}))
     const entry: DailyEntry = { date, alcohol, alcoholCategories: alcohol === 'alcohol' ? alcoholCategories : undefined, alcoholAmounts: alcohol === 'alcohol' ? alcoholAmounts : undefined, alcoholNotes: alcohol === 'alcohol' && alcoholNotes.trim() ? alcoholNotes.trim() : undefined, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, exercises: trained && cleanExercises.length ? cleanExercises : undefined, energy, mood, sleep, weightKg, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
     await saveEntry(entry)
     setHasExistingRecord(true)
@@ -746,27 +746,45 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
           <div className="exercise-list">
             <div className="exercise-list-heading">
               <strong>EJERCICIOS</strong>
-              <span>El detalle de series, repeticiones, peso y RPE se añadirá después.</span>
             </div>
 
-            {exercises.map((exercise,index) => <div className="exercise-row" key={index}>
-              <label>
-                <span>EJERCICIO {index + 1}</span>
-                <input
-                  type="text"
-                  placeholder="Nombre del ejercicio"
-                  value={exercise}
-                  onChange={(e:any)=>setExercises(current => current.map((item,i)=>i===index ? e.target.value : item))}
-                />
-              </label>
-              {exercises.length > 1 && <button
-                className="remove-exercise"
-                onClick={()=>setExercises(current => current.filter((_,i)=>i!==index))}
-                aria-label={`Eliminar ejercicio ${index + 1}`}
-              >×</button>}
-            </div>)}
+            {exercises.map((exercise,index) => {
+              const hasLoad = exercise.loadKg !== undefined && exercise.loadKg !== null
+              const visibleSets = Array.isArray(exercise.sets) ? exercise.sets.filter(set => set.reps !== undefined && set.reps !== null) : []
+              return <div className="exercise-record" key={index}>
+                <div className="exercise-row">
+                  <label>
+                    <span>EJERCICIO {index + 1}{exercise.muscleGroup && exercise.muscleGroup !== 'Otro' ? ` · ${exercise.muscleGroup.toUpperCase()}` : ''}</span>
+                    <input
+                      type="text"
+                      placeholder="Nombre del ejercicio"
+                      value={exercise.name}
+                      onChange={(e:any)=>setExercises(current => current.map((item,i)=>i===index ? {...item,name:e.target.value} : item))}
+                    />
+                  </label>
+                  {exercises.length > 1 && <button
+                    className="remove-exercise"
+                    onClick={()=>setExercises(current => current.filter((_,i)=>i!==index))}
+                    aria-label={`Eliminar ejercicio ${index + 1}`}
+                  >×</button>}
+                </div>
 
-            <button className="add-exercise-button" onClick={()=>setExercises(current => [...current,''])}>
+                {(hasLoad || visibleSets.length > 0) && <div className="exercise-performance">
+                  {hasLoad && <div className="performance-chip load-chip">
+                    <small>CARGA</small>
+                    <b>{exercise.loadKg}</b>
+                    <em>KG</em>
+                  </div>}
+                  {visibleSets.map((set,setIndex)=><div className="performance-chip" key={setIndex}>
+                    <small>S{setIndex + 1}</small>
+                    <b>{set.reps}</b>
+                    <em>REP</em>
+                  </div>)}
+                </div>}
+              </div>
+            })}
+
+            <button className="add-exercise-button" onClick={()=>setExercises(current => [...current,{muscleGroup:'Otro',name:'',sets:[]}])}>
               <span>+</span> AÑADIR EJERCICIO
             </button>
           </div>

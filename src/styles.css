@@ -234,3 +234,16 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;ba
   .strength-summary{grid-template-columns:1fr 1fr}
   .strength-summary span:last-child{grid-column:1/-1}
 }
+
+.exercise-record{display:flex;flex-direction:column;gap:8px}
+.exercise-record+.exercise-record{margin-top:4px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)}
+.exercise-performance{display:flex;gap:7px;flex-wrap:wrap}
+.performance-chip{width:58px;height:58px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:#070908;display:grid;grid-template-rows:14px 1fr 14px;align-items:center;justify-items:center;padding:5px 4px}
+.performance-chip small{font-size:5px;letter-spacing:1px;color:#7f8980}
+.performance-chip b{font-size:18px;line-height:1;color:#eef2eb;font-variant-numeric:tabular-nums}
+.performance-chip em{font-style:normal;font-size:5px;letter-spacing:1px;color:#8c968c}
+.performance-chip.load-chip{border-color:rgba(207,255,26,.38);background:rgba(207,255,26,.04)}
+.performance-chip.load-chip b,.performance-chip.load-chip em{color:var(--acid)}
+@media(max-width:380px){
+  .performance-chip{width:54px;height:54px}
+}
