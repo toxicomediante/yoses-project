@@ -1,4 +1,3 @@
 YOSE'S PROJECT Android test build
-Direct APK: /downloads/YOSES-PROJECT-debug.apk
-Build source: f63bfc76a2016dc161804f6d43b624450d7e81df
-Header spacing revision: 2026-09-18
+Direct APK: https://github.com/toxicomediante/yoses-project/releases/download/test-build/YOSES-PROJECT-debug.apk
+Source: GitHub Actions release asset
