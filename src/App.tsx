@@ -85,7 +85,7 @@ const STRENGTH_EXERCISES: Record<string,string[]> = {
 }
 
 function createStrengthExercise(): TrainingExercise {
-  return { muscleGroup:'Pierna', name:'Sentadilla con barra', loadKg:0, sets:[{reps:5}] }
+  return { muscleGroup:'Pierna', name:'Sentadilla con barra', sets:[{}] }
 }
 
 type TimerPhase = 'idle' | 'prepare' | 'work' | 'rest' | 'done'
@@ -374,7 +374,7 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
     setExercises(current=>current.map((exercise,i)=>i===exerciseIndex?{...exercise,sets:[...exercise.sets,{reps:exercise.sets.at(-1)?.reps ?? 5}]}:exercise))
   }
 
-  function updateSet(exerciseIndex:number,setIndex:number,reps:number) {
+  function updateSet(exerciseIndex:number,setIndex:number,reps:number | undefined) {
     setExercises(current=>current.map((exercise,i)=>{
       if(i!==exerciseIndex)return exercise
       return {...exercise,sets:exercise.sets.map((set,j)=>j===setIndex?{...set,reps}:set)}
@@ -385,7 +385,7 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
     setExercises(current=>current.map((exercise,i)=>{
       if(i!==exerciseIndex)return exercise
       const sets=exercise.sets.filter((_,j)=>j!==setIndex)
-      return {...exercise,sets:sets.length?sets:[{reps:5}]}
+      return {...exercise,sets:sets.length?sets:[{}]}
     }))
   }
 
@@ -456,13 +456,13 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
             <label><span>EJERCICIO</span><select value={exercise.name} onChange={(e:any)=>updateExercise(index,{name:e.target.value})}>{(STRENGTH_EXERCISES[exercise.muscleGroup]||['Otro']).map(name=><option key={name}>{name}</option>)}</select></label>
           </div>
 
-          <label className="strength-load"><span>CARGA</span><div><input type="number" inputMode="decimal" min="0" step="0.5" value={exercise.loadKg ?? ''} onChange={(e:any)=>updateExercise(index,{loadKg:e.target.value===''?0:Number(e.target.value)})}/><b>KG</b></div></label>
+          <label className="strength-load"><span>CARGA</span><div><input type="number" inputMode="decimal" min="0" step="0.5" placeholder="—" value={exercise.loadKg ?? ''} onChange={(e:any)=>updateExercise(index,{loadKg:e.target.value===''?undefined:Number(e.target.value)})}/><b>KG</b></div></label>
 
           <div className="strength-sets">
             <div className="strength-sets-head"><span>SERIES REALES</span><small>REP.</small></div>
             {exercise.sets.map((set,setIndex)=><div className="strength-set-row" key={setIndex}>
               <b>SERIE {setIndex+1}</b>
-              <input type="number" inputMode="numeric" min="0" max="99" value={set.reps} onChange={(e:any)=>updateSet(index,setIndex,Number(e.target.value)||0)}/>
+              <input type="number" inputMode="numeric" min="0" max="99" placeholder="—" value={set.reps ?? ''} onChange={(e:any)=>updateSet(index,setIndex,e.target.value===''?undefined:Number(e.target.value))}/>
               <button onClick={()=>removeSet(index,setIndex)} aria-label={`Eliminar serie ${setIndex+1}`}>×</button>
             </div>)}
             <button className="add-set-button" onClick={()=>addSet(index)}>+ AÑADIR SERIE</button>

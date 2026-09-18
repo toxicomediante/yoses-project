@@ -2,7 +2,7 @@ export type AlcoholStatus = 'none' | 'alcohol' | null
 export type AlcoholCategory = 'beer' | 'wine' | 'spirits'
 
 export interface TrainingSet {
-  reps: number
+  reps?: number
 }
 
 export interface TrainingExercise {
