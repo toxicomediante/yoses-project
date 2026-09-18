@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { deleteEntry, getAllEntries, getEntry, saveEntry } from './storage'
 import type { AlcoholCategory, AlcoholStatus, DailyEntry } from './types'
 import ritualNebula from './assets/ritual-nebula.png'
@@ -36,6 +36,7 @@ function GearIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path 
 function BackIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path d="m15 5-7 7 7 7"/></svg>}
 function TrashIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>}
 function WeightIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path d="M5 5h14a2 2 0 0 1 2 2v12H3V7a2 2 0 0 1 2-2Z"/><path d="M8 10a4 4 0 0 1 8 0M12 10l2-2"/></svg>}
+function TimerIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path d="M9 2h6M12 6a8 8 0 1 1-8 8 8 8 0 0 1 8-8Z"/><path d="M12 10v4l3 2M17.5 5.5 19 4"/></svg>}
 
 function RitualHeader({compact=false}:{compact?:boolean}) {
   return <div className={`ritual ${compact ? 'compact' : ''}`} aria-hidden="true">
@@ -71,6 +72,251 @@ function Rating({label, value, onChange}:{label:string,value?:number,onChange:(v
   </div>
 }
 
+
+type TimerPhase = 'idle' | 'prepare' | 'work' | 'rest' | 'done'
+
+function formatClock(totalSeconds:number) {
+  const seconds = Math.max(0, Math.ceil(totalSeconds))
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`
+}
+
+function IntervalTimerScreen({onBack}:{onBack:()=>void}) {
+  const [workSec,setWorkSec] = useState(60)
+  const [restSec,setRestSec] = useState(180)
+  const [rounds,setRounds] = useState(5)
+  const [prepSec,setPrepSec] = useState(10)
+  const [soundEnabled,setSoundEnabled] = useState(true)
+  const [vibrationEnabled,setVibrationEnabled] = useState(true)
+  const [phase,setPhase] = useState<TimerPhase>('idle')
+  const [round,setRound] = useState(1)
+  const [running,setRunning] = useState(false)
+  const [remainingMs,setRemainingMs] = useState(workSec * 1000)
+  const [phaseEndAt,setPhaseEndAt] = useState<number | null>(null)
+  const lastCueSecond = useRef<number | null>(null)
+  const audioContext = useRef<AudioContext | null>(null)
+  const swipeStart = useRef<{x:number,y:number} | null>(null)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('yoses-interval-timer')
+    if (!saved) return
+    try {
+      const parsed = JSON.parse(saved)
+      if (Number.isFinite(parsed.workSec)) setWorkSec(parsed.workSec)
+      if (Number.isFinite(parsed.restSec)) setRestSec(parsed.restSec)
+      if (Number.isFinite(parsed.rounds)) setRounds(parsed.rounds)
+      if (Number.isFinite(parsed.prepSec)) setPrepSec(parsed.prepSec)
+      if (typeof parsed.soundEnabled === 'boolean') setSoundEnabled(parsed.soundEnabled)
+      if (typeof parsed.vibrationEnabled === 'boolean') setVibrationEnabled(parsed.vibrationEnabled)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('yoses-interval-timer', JSON.stringify({workSec,restSec,rounds,prepSec,soundEnabled,vibrationEnabled}))
+    if (phase === 'idle') setRemainingMs(workSec * 1000)
+  }, [workSec,restSec,rounds,prepSec,soundEnabled,vibrationEnabled,phase])
+
+  function phaseDurationSeconds(current:TimerPhase) {
+    if (current === 'prepare') return prepSec
+    if (current === 'work') return workSec
+    if (current === 'rest') return restSec
+    return workSec
+  }
+
+  function primeAudio() {
+    if (!soundEnabled) return
+    try {
+      if (!audioContext.current) audioContext.current = new AudioContext()
+      if (audioContext.current.state === 'suspended') void audioContext.current.resume()
+    } catch {}
+  }
+
+  function cue(kind:'warning'|'work'|'rest'|'done') {
+    if (vibrationEnabled && 'vibrate' in navigator) {
+      if (kind === 'done') navigator.vibrate([120,80,120,80,220])
+      else if (kind === 'work') navigator.vibrate([110,50,110])
+      else navigator.vibrate(70)
+    }
+    if (!soundEnabled) return
+    try {
+      primeAudio()
+      const ctx = audioContext.current
+      if (!ctx) return
+      const now = ctx.currentTime
+      const frequencies = kind === 'done' ? [880,1100,1320] : [kind === 'work' ? 980 : kind === 'rest' ? 520 : 760]
+      frequencies.forEach((frequency,index) => {
+        const oscillator = ctx.createOscillator()
+        const gain = ctx.createGain()
+        oscillator.type = 'sine'
+        oscillator.frequency.value = frequency
+        gain.gain.setValueAtTime(0.0001, now + index * .13)
+        gain.gain.exponentialRampToValueAtTime(.16, now + index * .13 + .01)
+        gain.gain.exponentialRampToValueAtTime(.0001, now + index * .13 + .11)
+        oscillator.connect(gain)
+        gain.connect(ctx.destination)
+        oscillator.start(now + index * .13)
+        oscillator.stop(now + index * .13 + .12)
+      })
+    } catch {}
+  }
+
+  function enterPhase(next:TimerPhase,nextRound=round) {
+    lastCueSecond.current = null
+    if (next === 'done') {
+      setPhase('done')
+      setRunning(false)
+      setPhaseEndAt(null)
+      setRemainingMs(0)
+      cue('done')
+      return
+    }
+    const seconds = phaseDurationSeconds(next)
+    setRound(nextRound)
+    setPhase(next)
+    setRemainingMs(seconds * 1000)
+    setPhaseEndAt(Date.now() + seconds * 1000)
+    setRunning(true)
+    if (next === 'work') cue('work')
+    if (next === 'rest') cue('rest')
+  }
+
+  function advancePhase() {
+    if (phase === 'prepare') return enterPhase('work',1)
+    if (phase === 'work') {
+      if (round >= rounds) return enterPhase('done',round)
+      return enterPhase('rest',round)
+    }
+    if (phase === 'rest') return enterPhase('work',round + 1)
+  }
+
+  useEffect(() => {
+    if (!running || !phaseEndAt || phase === 'idle' || phase === 'done') return
+    const timer = window.setInterval(() => {
+      const next = Math.max(0, phaseEndAt - Date.now())
+      setRemainingMs(next)
+      const whole = Math.ceil(next / 1000)
+      if (whole > 0 && whole <= 3 && whole !== lastCueSecond.current) {
+        lastCueSecond.current = whole
+        cue('warning')
+      }
+      if (next <= 0) {
+        window.clearInterval(timer)
+        advancePhase()
+      }
+    }, 100)
+    return () => window.clearInterval(timer)
+  }, [running,phaseEndAt,phase,round,rounds,workSec,restSec,prepSec,soundEnabled,vibrationEnabled])
+
+  function startTimer() {
+    primeAudio()
+    setRound(1)
+    if (prepSec > 0) enterPhase('prepare',1)
+    else enterPhase('work',1)
+  }
+
+  function pauseResume() {
+    if (phase === 'idle' || phase === 'done') return
+    if (running) {
+      if (phaseEndAt) setRemainingMs(Math.max(0,phaseEndAt-Date.now()))
+      setRunning(false)
+      setPhaseEndAt(null)
+    } else {
+      setPhaseEndAt(Date.now()+remainingMs)
+      setRunning(true)
+    }
+  }
+
+  function resetTimer() {
+    setRunning(false)
+    setPhase('idle')
+    setRound(1)
+    setPhaseEndAt(null)
+    setRemainingMs(workSec*1000)
+    lastCueSecond.current = null
+  }
+
+  function applyPreset(work:number,rest:number,count:number,prep=10) {
+    if (phase !== 'idle' && phase !== 'done') return
+    setWorkSec(work); setRestSec(rest); setRounds(count); setPrepSec(prep); setPhase('idle'); setRemainingMs(work*1000)
+  }
+
+  const editable = phase === 'idle' || phase === 'done'
+  const displaySeconds = remainingMs / 1000
+  const totalSeconds = prepSec + rounds * workSec + Math.max(0,rounds-1) * restSec
+  const totalPhaseMs = Math.max(1,phaseDurationSeconds(phase) * 1000)
+  const progress = phase === 'idle' ? 0 : phase === 'done' ? 100 : Math.min(100,Math.max(0,(1 - remainingMs / totalPhaseMs) * 100))
+  const phaseLabel = phase === 'idle' ? 'LISTO' : phase === 'prepare' ? 'PREPÁRATE' : phase === 'work' ? 'INTERVALO' : phase === 'rest' ? 'DESCANSO' : 'COMPLETADO'
+
+  return <main className="app-shell">
+    <section
+      className="phone-surface timer-screen"
+      onTouchStart={(e:any)=>{const t=e.changedTouches[0];swipeStart.current={x:t.clientX,y:t.clientY}}}
+      onTouchEnd={(e:any)=>{const start=swipeStart.current;if(!start)return;const t=e.changedTouches[0];const dx=t.clientX-start.x;const dy=t.clientY-start.y;if(dx>70&&Math.abs(dx)>Math.abs(dy)*1.25)onBack();swipeStart.current=null}}
+    >
+      <div className="header-nebula timer-nebula" style={{backgroundImage:`url(${ritualNebula})`}} aria-hidden="true" />
+      <header className="topbar">
+        <div className="brand"><span>YOSE'S</span><small>PROJECT</small></div>
+        <button className="icon-button" onClick={onBack} aria-label="Volver al calendario"><BackIcon/></button>
+      </header>
+
+      <div className="timer-hero">
+        <RitualHeader compact/>
+        <div className="timer-heading"><TimerIcon/><div><h1>INTERVALÓMETRO</h1><p>FUERZA · INTERVALOS · CONTROL</p></div></div>
+      </div>
+
+      <section className={`timer-display-card phase-${phase}`}>
+        <div className="timer-phase"><span>{phaseLabel}</span><b>{phase === 'idle' ? `${rounds} RONDAS` : phase === 'done' ? 'FIN' : `RONDA ${round} / ${rounds}`}</b></div>
+        <div className="timer-dial" style={{'--timer-progress':`${progress}%`} as any}>
+          <div className="timer-clock">{formatClock(displaySeconds)}</div>
+        </div>
+        <div className="timer-next">
+          {phase === 'work' && round < rounds ? `SIGUIENTE · DESCANSO ${formatClock(restSec)}` :
+           phase === 'rest' ? `SIGUIENTE · INTERVALO ${formatClock(workSec)}` :
+           phase === 'prepare' ? `SIGUIENTE · INTERVALO ${formatClock(workSec)}` :
+           phase === 'done' ? 'SESIÓN COMPLETADA' : `TOTAL · ${formatClock(totalSeconds)}`}
+        </div>
+
+        <div className="timer-controls">
+          {(phase === 'idle' || phase === 'done') ? <button className="timer-start" onClick={startTimer}>COMENZAR <span>▶</span></button> :
+          <>
+            <button className="timer-control" onClick={pauseResume}>{running ? 'PAUSA' : 'REANUDAR'}</button>
+            <button className="timer-control accent" onClick={advancePhase}>SALTAR</button>
+            <button className="timer-control" onClick={resetTimer}>PARAR</button>
+          </>}
+        </div>
+      </section>
+
+      <section className="entry-card timer-settings-card">
+        <div className="section-title"><TimerIcon/><span>CONFIGURACIÓN</span></div>
+        <div className="timer-setting-grid">
+          <label><span>INTERVALO</span><div><input disabled={!editable} type="number" min="1" max="3600" value={workSec} onChange={(e:any)=>setWorkSec(Math.max(1,Number(e.target.value)||1))}/><b>SEG</b></div></label>
+          <label><span>DESCANSO</span><div><input disabled={!editable} type="number" min="0" max="3600" value={restSec} onChange={(e:any)=>setRestSec(Math.max(0,Number(e.target.value)||0))}/><b>SEG</b></div></label>
+          <label><span>RONDAS</span><div><input disabled={!editable} type="number" min="1" max="99" value={rounds} onChange={(e:any)=>setRounds(Math.max(1,Number(e.target.value)||1))}/><b>×</b></div></label>
+          <label><span>CUENTA ATRÁS</span><div><input disabled={!editable} type="number" min="0" max="60" value={prepSec} onChange={(e:any)=>setPrepSec(Math.max(0,Number(e.target.value)||0))}/><b>SEG</b></div></label>
+        </div>
+        <div className="timer-toggles">
+          <button className={soundEnabled ? 'on' : ''} onClick={()=>setSoundEnabled(v=>!v)}><i>{soundEnabled?'✓':''}</i> SONIDO</button>
+          <button className={vibrationEnabled ? 'on' : ''} onClick={()=>setVibrationEnabled(v=>!v)}><i>{vibrationEnabled?'✓':''}</i> VIBRACIÓN</button>
+        </div>
+      </section>
+
+      <section className="entry-card presets-card">
+        <div className="section-title"><span className="sigil">✦</span><span>PRESETS RÁPIDOS</span></div>
+        <div className="preset-grid">
+          <button disabled={!editable} onClick={()=>applyPreset(60,180,5)}><strong>FUERZA</strong><span>60 / 180 · 5×</span></button>
+          <button disabled={!editable} onClick={()=>applyPreset(45,90,5)}><strong>HIPERTROFIA</strong><span>45 / 90 · 5×</span></button>
+          <button disabled={!editable} onClick={()=>applyPreset(30,60,8)}><strong>RÁPIDO</strong><span>30 / 60 · 8×</span></button>
+          <button disabled={!editable} onClick={()=>applyPreset(20,10,8)}><strong>TABATA</strong><span>20 / 10 · 8×</span></button>
+        </div>
+      </section>
+
+      <button className="swipe-hint" onClick={onBack}>DESLIZA → PARA VOLVER AL CALENDARIO</button>
+      <footer>EL TIEMPO TAMBIÉN SE ENTRENA.</footer>
+    </section>
+  </main>
+}
+
 function App() {
   const today = useMemo(() => new Date(), [])
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
@@ -78,6 +324,8 @@ function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
+  const [screen,setScreen] = useState<'home'|'timer'>('home')
+  const homeSwipeStart = useRef<{x:number,y:number} | null>(null)
 
   async function refresh() {
     setEntries(await getAllEntries())
@@ -110,6 +358,10 @@ function App() {
     return <DayScreen date={selectedDate} onBack={async () => { await refresh(); setSelectedDate(null) }} />
   }
 
+  if (screen === 'timer') {
+    return <IntervalTimerScreen onBack={()=>setScreen('home')} />
+  }
+
   const year = cursor.getFullYear(); const month = cursor.getMonth()
   const total = daysInMonth(year, month)
   const offset = mondayIndex(new Date(year, month, 1).getDay())
@@ -119,7 +371,11 @@ function App() {
   const shiftMonth = (delta:number) => setCursor(new Date(year, month + delta, 1))
 
   return <main className="app-shell">
-    <section className="phone-surface home-screen">
+    <section
+      className="phone-surface home-screen"
+      onTouchStart={(e:any)=>{const t=e.changedTouches[0];homeSwipeStart.current={x:t.clientX,y:t.clientY}}}
+      onTouchEnd={(e:any)=>{const start=homeSwipeStart.current;if(!start)return;const t=e.changedTouches[0];const dx=t.clientX-start.x;const dy=t.clientY-start.y;if(dx<-70&&Math.abs(dx)>Math.abs(dy)*1.25)setScreen('timer');homeSwipeStart.current=null}}
+    >
       <div className="header-nebula" style={{backgroundImage:`url(${ritualNebula})`}} aria-hidden="true" />
       <header className="topbar">
         <div className="brand"><span>YOSE'S</span><small>PROJECT</small></div>
@@ -166,6 +422,7 @@ function App() {
 
       <button className="primary-button" onClick={()=>setSelectedDate(localIsoDate(today))}>REGISTRAR HOY <span>→</span></button>
       <button className="secondary-button" onClick={()=>alert('Histórico: siguiente pantalla del vertical slice.')}>VER HISTÓRICO</button>
+      <button className="swipe-hint" onClick={()=>setScreen('timer')}>← DESLIZA PARA INTERVALÓMETRO</button>
       <footer>DISCIPLINA HOY. UN MAÑANA DIFERENTE.</footer>
 
       {showSettings && <div className="settings-popover"><strong>AJUSTES</strong><p>Las notificaciones y la hora diaria se incorporarán en la fase Android/Capacitor.</p></div>}
