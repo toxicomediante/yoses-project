@@ -56,10 +56,29 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;ba
 @media (prefers-reduced-motion: reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
 
 .home-screen .topbar,.home-screen .month-title-row,.day-screen .topbar,.day-screen .detail-heading{position:relative;z-index:3}
-.home-screen .hero-copy{position:absolute;z-index:3}
 
-.home-screen .ritual{margin-top:-52px}
-.home-screen .month-title-row{margin-top:32px}
+/* Home header: slogans live in normal flow, so they cannot collide with logo/settings. */
+.home-hero-copy-row{
+  position:relative;
+  z-index:3;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  align-items:start;
+  min-height:40px;
+  margin:2px 2px 0;
+}
+.home-screen .hero-copy{
+  position:static;
+  top:auto;
+  font-size:8px;
+  line-height:1.45;
+  letter-spacing:2px;
+}
+.home-screen .hero-copy.left{justify-self:start}
+.home-screen .hero-copy.right{justify-self:end;text-align:right}
+
+.home-screen .ritual{margin-top:-20px}
+.home-screen .month-title-row{margin-top:2px}
 
 .trash-icon-button{color:#cdd4cb}
 .trash-icon-button:disabled{opacity:.26;cursor:default}
@@ -363,22 +382,19 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;ba
 }
 
 
-/* Mobile header rhythm: enough clearance for Android chrome without creating a dead zone. */
+/* Mobile header rhythm: compact, clear and collision-free. */
 @media (max-width:520px){
   .phone-surface{
-    padding-top:32px;
+    padding-top:18px;
   }
-
-  /* Keep the slogans below the top bar so they can never sit under the logo or settings button. */
-  .home-screen .hero-copy{
-    top:100px;
+  .home-hero-copy-row{
+    min-height:38px;
+    margin-top:0;
   }
-
-  /* Preserve the compact ritual composition instead of pushing the whole header down. */
   .home-screen .ritual{
-    margin-top:-46px;
+    margin-top:-18px;
   }
   .home-screen .month-title-row{
-    margin-top:26px;
+    margin-top:0;
   }
 }
