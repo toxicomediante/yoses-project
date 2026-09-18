@@ -71,11 +71,40 @@ const densities = {
 for (const [folder, size] of Object.entries(densities)) {
   const dir = path.join(mainRoot, 'res', folder)
   mkdirSync(dir, { recursive: true })
-  await sharp(iconSource).resize(size, size, { fit: 'cover' }).png().toFile(path.join(dir, 'ic_launcher.png'))
-  await sharp(iconSource).resize(size, size, { fit: 'cover' }).png().toFile(path.join(dir, 'ic_launcher_round.png'))
-}
-const adaptive = path.join(mainRoot, 'res', 'mipmap-anydpi-v26')
-rmSync(path.join(adaptive, 'ic_launcher.xml'), { force: true })
-rmSync(path.join(adaptive, 'ic_launcher_round.xml'), { force: true })
 
-console.log('Android preparado: icono, puente nativo y 4 widgets YOSE.')
+  // Legacy launchers: render the artwork full-bleed.
+  await sharp(iconSource)
+    .resize(size, size, { fit: 'cover' })
+    .flatten({ background: '#050706' })
+    .png()
+    .toFile(path.join(dir, 'ic_launcher.png'))
+  await sharp(iconSource)
+    .resize(size, size, { fit: 'cover' })
+    .flatten({ background: '#050706' })
+    .png()
+    .toFile(path.join(dir, 'ic_launcher_round.png'))
+
+  // Adaptive launchers use a 108dp foreground canvas. Keep the artwork full-bleed;
+  // the launcher itself applies the final circle/squircle mask.
+  const adaptiveSize = Math.round(size * 2.25)
+  await sharp(iconSource)
+    .resize(adaptiveSize, adaptiveSize, { fit: 'cover' })
+    .flatten({ background: '#050706' })
+    .png()
+    .toFile(path.join(dir, 'ic_launcher_foreground.png'))
+}
+
+const valuesDir = path.join(mainRoot, 'res', 'values')
+mkdirSync(valuesDir, { recursive: true })
+writeFileSync(
+  path.join(valuesDir, 'launcher_icon_colors.xml'),
+  '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#050706</color>\n</resources>\n'
+)
+
+const adaptive = path.join(mainRoot, 'res', 'mipmap-anydpi-v26')
+mkdirSync(adaptive, { recursive: true })
+const adaptiveXml = '<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n    <background android:drawable="@color/ic_launcher_background"/>\n    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\n</adaptive-icon>\n'
+writeFileSync(path.join(adaptive, 'ic_launcher.xml'), adaptiveXml)
+writeFileSync(path.join(adaptive, 'ic_launcher_round.xml'), adaptiveXml)
+
+console.log('Android preparado: icono adaptativo full-bleed, puente nativo y 4 widgets YOSE.')
