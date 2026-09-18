@@ -35,6 +35,7 @@ function DumbbellIcon({active=false}:{active?:boolean}) {
 function GearIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path d="M12 8.5A3.5 3.5 0 1 0 12 15.5A3.5 3.5 0 0 0 12 8.5Z"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a8 8 0 0 0-1.8-1L14.4 3h-4.8l-.4 3.1a8 8 0 0 0-1.8 1l-2.4-1-2 3.4L5 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 1.8 1l.4 3.1h4.8l.4-3.1a8 8 0 0 0 1.8-1l2.4 1 2-3.4L19 13a7 7 0 0 0 0-1Z"/></svg>}
 function BackIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path d="m15 5-7 7 7 7"/></svg>}
 function TrashIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>}
+function WeightIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path d="M5 5h14a2 2 0 0 1 2 2v12H3V7a2 2 0 0 1 2-2Z"/><path d="M8 10a4 4 0 0 1 8 0M12 10l2-2"/></svg>}
 
 function RitualHeader({compact=false}:{compact?:boolean}) {
   return <div className={`ritual ${compact ? 'compact' : ''}`} aria-hidden="true">
@@ -185,6 +186,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
   const [energy,setEnergy] = useState<number | undefined>()
   const [mood,setMood] = useState<number | undefined>()
   const [sleep,setSleep] = useState<number | undefined>()
+  const [weightKg,setWeightKg] = useState<number | undefined>()
   const [notes,setNotes] = useState('')
   const [saved,setSaved] = useState(false)
   const [hasExistingRecord,setHasExistingRecord] = useState(false)
@@ -194,12 +196,12 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
       setHasExistingRecord(Boolean(e))
       if (!e) return
       setAlcohol(e.alcohol); setTrained(e.trained); setTrainingMinutes(e.trainingMinutes); setTrainingType(e.trainingType || 'Fuerza')
-      setEnergy(e.energy); setMood(e.mood); setSleep(e.sleep); setNotes(e.notes || '')
+      setEnergy(e.energy); setMood(e.mood); setSleep(e.sleep); setWeightKg(e.weightKg); setNotes(e.notes || '')
     })
   }, [date])
 
   async function handleSave() {
-    const entry: DailyEntry = { date, alcohol, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, energy, mood, sleep, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
+    const entry: DailyEntry = { date, alcohol, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, energy, mood, sleep, weightKg, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
     await saveEntry(entry)
     setHasExistingRecord(true)
     setSaved(true)
@@ -256,6 +258,25 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
         <Rating label="ENERGÍA" value={energy} onChange={setEnergy}/>
         <Rating label="ÁNIMO" value={mood} onChange={setMood}/>
         <Rating label="SUEÑO" value={sleep} onChange={setSleep}/>
+      </section>
+
+      <section className="entry-card weight-card">
+        <div className="section-title"><WeightIcon/><span>PESO</span></div>
+        <label className="weight-input-wrap">
+          <input
+            type="number"
+            inputMode="decimal"
+            min="20"
+            max="400"
+            step="0.1"
+            placeholder="—"
+            value={weightKg ?? ''}
+            onChange={(e:any)=>setWeightKg(e.target.value === '' ? undefined : Number(e.target.value))}
+            aria-label="Peso corporal en kilogramos"
+          />
+          <span>KG</span>
+        </label>
+        <p className="microcopy">Peso corporal registrado para este día.</p>
       </section>
 
       <section className="entry-card notes-card">

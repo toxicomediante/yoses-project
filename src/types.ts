@@ -9,6 +9,7 @@ export interface DailyEntry {
   energy?: number
   mood?: number
   sleep?: number
+  weightKg?: number
   notes?: string
   updatedAt: string
 }
