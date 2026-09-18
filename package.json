@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "cap:sync": "npx cap sync android",
     "cap:add:android": "npx cap add android",
-    "android": "npx cap open android"
+    "android": "npx cap open android",
+    "android:prepare": "npm run build && node scripts/prepare-android.mjs",
+    "android:debug": "npm run android:prepare && cd android && chmod +x gradlew && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
