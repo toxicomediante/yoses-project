@@ -38,21 +38,45 @@ function BackIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path 
 function RitualHeader({compact=false}:{compact?:boolean}) {
   return <div className={`ritual ${compact ? 'compact' : ''}`} aria-hidden="true">
     <svg viewBox="0 0 360 150" preserveAspectRatio="xMidYMid meet">
-      <image href={ritualNebula} x="0" y="0" width="360" height="150" preserveAspectRatio="xMidYMid slice" className="ritual-nebula-image" />
+      <defs>
+        <linearGradient id="ritualFadeDown" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#050706" stopOpacity="0" />
+          <stop offset="62%" stopColor="#050706" stopOpacity="0.10" />
+          <stop offset="100%" stopColor="#050706" stopOpacity="0.96" />
+        </linearGradient>
+      </defs>
+
+      <image href={ritualNebula} x="-24" y="-20" width="408" height="198" preserveAspectRatio="xMidYMid slice" className="ritual-nebula-image" />
       <image href={ritualMoon} x="134" y="31" width="92" height="92" preserveAspectRatio="xMidYMid meet" className="ritual-moon-image" />
-      <g className="ritual-lines">
+      <rect className="ritual-fade-mask" x="0" y="82" width="360" height="68" fill="url(#ritualFadeDown)" />
+
+      <g className="ritual-lines ritual-structure">
         <path d="M180 4v138"/>
-        <path d="M91 86h178"/>
+        <path d="M88 86h184"/>
         <path d="M180 24 145 78l35 46 35-46Z"/>
         <circle cx="180" cy="77" r="46"/>
         <circle cx="180" cy="77" r="30" strokeDasharray="3 6"/>
         <path d="M144 20a50 50 0 0 0 72 0 43 43 0 0 1-72 0Z"/>
-        <path d="m112 55 13 7-13 7m136-14-13 7 13 7"/>
+        <path d="M154 19c9 9 18 13 26 13s17-4 26-13"/>
       </g>
+
+      <g className="ritual-lines ritual-sigils">
+        <path d="M102 55l18 12-18 12 7-12-7-12Z"/>
+        <path d="M258 55l-18 12 18 12-7-12 7-12Z"/>
+        <path d="M94 96l13 10-8 12 18-6"/>
+        <path d="M266 96l-13 10 8 12-18-6"/>
+        <path d="M121 112h20m-10-13v26m-7-13h14"/>
+        <path d="M219 112h20m-10-13v26m-7-13h14"/>
+        <path d="M127 46l11 7-6 10"/>
+        <path d="M233 46l-11 7 6 10"/>
+      </g>
+
       <g className="ritual-runes">
-        <path d="M121 113h16m-8-8v16M223 113h16m-8-8v16"/>
-        <path d="m104 90 7 7-7 7m152-14-7 7 7 7"/>
+        <path d="M115 37l8 4-5 8"/>
+        <path d="M245 37l-8 4 5 8"/>
+        <path d="M180 15l-5 7 5 7 5-7-5-7Z"/>
       </g>
+
       <circle className="ritual-core" cx="180" cy="77" r="13"/>
     </svg>
   </div>
