@@ -385,7 +385,9 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;ba
 /* Mobile header rhythm: compact, clear and collision-free. */
 @media (max-width:520px){
   .phone-surface{
-    padding-top:18px;
+    /* Android renders the WebView under the status bar on some devices.
+       Keep the header comfortably below it without recreating the old dead zone. */
+    padding-top:max(30px, calc(env(safe-area-inset-top, 0px) + 8px));
   }
   .home-hero-copy-row{
     min-height:38px;
