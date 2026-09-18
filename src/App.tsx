@@ -1035,8 +1035,10 @@ function App() {
         <button className="icon-button" onClick={() => setScreen('settings')} aria-label="Ajustes"><GearIcon/></button>
       </header>
 
-      <div className="hero-copy left">DISCIPLINA<br/>CONSTRUYE<br/><em>LIBERTAD</em></div>
-      <div className="hero-copy right">MENTE<br/>MÁS CLARA<br/><em>CUERPO MÁS FUERTE</em></div>
+      <div className="home-hero-copy-row">
+        <div className="hero-copy left">DISCIPLINA<br/>CONSTRUYE<br/><em>LIBERTAD</em></div>
+        <div className="hero-copy right">MENTE<br/>MÁS CLARA<br/><em>CUERPO MÁS FUERTE</em></div>
+      </div>
       <RitualHeader />
 
       <div className="month-title-row">
