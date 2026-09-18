@@ -1,0 +1,2 @@
+YOSE'S PROJECT Android test build
+Direct APK: /downloads/YOSES-PROJECT-debug.apk
