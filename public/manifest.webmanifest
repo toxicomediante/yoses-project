@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "YOSE'S PROJECT",
+  "short_name": "YOSE",
+  "description": "Progreso, entrenamiento y registro personal.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#050706",
+  "theme_color": "#050706",
+  "icons": [
+    {
+      "src": "./app-icon.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
