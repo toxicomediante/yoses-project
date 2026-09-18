@@ -212,8 +212,8 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
       <section className="entry-card">
         <div className="section-title"><BottleIcon/><span>ALCOHOL</span></div>
         <div className="choice-grid">
-          <button className={alcohol==='none'?'choice selected':''} onClick={()=>setAlcohol('none')}><BottleIcon active/><span>SIN ALCOHOL</span></button>
-          <button className={alcohol==='alcohol'?'choice danger-selected':''} onClick={()=>setAlcohol('alcohol')}><CanIcon active/><span>HE BEBIDO</span></button>
+          <button className={`choice ${alcohol==='none'?'selected':''}`} onClick={()=>setAlcohol('none')}><BottleIcon active/><span>SIN ALCOHOL</span></button>
+          <button className={`choice ${alcohol==='alcohol'?'danger-selected':''}`} onClick={()=>setAlcohol('alcohol')}><CanIcon active/><span>HE BEBIDO</span></button>
         </div>
         <p className="microcopy">{alcohol===null?'Sin registrar': alcohol==='none'?'Día marcado sin consumo de alcohol.':'Día marcado con consumo de alcohol.'}</p>
       </section>
