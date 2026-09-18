@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { deleteEntry, getAllEntries, getEntry, saveEntry } from './storage'
+import { clearAllEntries, deleteEntry, getAllEntries, getEntry, saveEntry } from './storage'
 import type { AlcoholCategory, AlcoholStatus, DailyEntry, TrainingExercise } from './types'
 import ritualNebula from './assets/ritual-nebula.png'
 import ritualMoon from './assets/ritual-moon.png'
@@ -86,6 +86,45 @@ const STRENGTH_EXERCISES: Record<string,string[]> = {
 
 function createStrengthExercise(): TrainingExercise {
   return { muscleGroup:'Pierna', name:'Sentadilla con barra', sets:[{}] }
+}
+
+interface AppSettings {
+  reminderEnabled: boolean
+  reminderTime: string
+  reminderOnlyIfUnregistered: boolean
+  animationsEnabled: boolean
+  weeklyTrainingGoal: number
+  targetWeightKg?: number
+  plannedTrainingDays: number[]
+  favoriteExercises: string[]
+}
+
+const DEFAULT_SETTINGS: AppSettings = {
+  reminderEnabled: true,
+  reminderTime: '21:30',
+  reminderOnlyIfUnregistered: true,
+  animationsEnabled: true,
+  weeklyTrainingGoal: 3,
+  plannedTrainingDays: [],
+  favoriteExercises: []
+}
+
+function loadAppSettings(): AppSettings {
+  try {
+    const raw=localStorage.getItem('yoses-settings')
+    return raw ? {...DEFAULT_SETTINGS,...JSON.parse(raw)} : DEFAULT_SETTINGS
+  } catch {
+    return DEFAULT_SETTINGS
+  }
+}
+
+function saveAppSettings(settings:AppSettings) {
+  localStorage.setItem('yoses-settings',JSON.stringify(settings))
+  document.documentElement.classList.toggle('animations-off',!settings.animationsEnabled)
+}
+
+function allStrengthExerciseNames() {
+  return Array.from(new Set(Object.values(STRENGTH_EXERCISES).flat().filter(name=>name!=='Otro'))).sort((a,b)=>a.localeCompare(b,'es'))
 }
 
 type TimerPhase = 'idle' | 'prepare' | 'work' | 'rest' | 'done'
@@ -393,6 +432,222 @@ function HistoryLineChart({
   </div>
 }
 
+
+function SettingsScreen({entries,onBack,onDataChanged}:{entries:DailyEntry[];onBack:()=>void;onDataChanged:()=>void}) {
+  const [settings,setSettings]=useState<AppSettings>(()=>loadAppSettings())
+  const [timer,setTimer]=useState(()=>{
+    try {
+      const parsed=JSON.parse(localStorage.getItem('yoses-interval-timer')||'{}')
+      return {workSec:parsed.workSec??60,restSec:parsed.restSec??180,rounds:parsed.rounds??5,prepSec:parsed.prepSec??10,soundEnabled:parsed.soundEnabled??true,vibrationEnabled:parsed.vibrationEnabled??true}
+    } catch {
+      return {workSec:60,restSec:180,rounds:5,prepSec:10,soundEnabled:true,vibrationEnabled:true}
+    }
+  })
+  const [notice,setNotice]=useState('')
+  const importRef=useRef<HTMLInputElement|null>(null)
+  const weekdayNames=['L','M','X','J','V','S','D']
+
+  useEffect(()=>{
+    saveAppSettings(settings)
+  },[settings])
+
+  useEffect(()=>{
+    localStorage.setItem('yoses-interval-timer',JSON.stringify(timer))
+  },[timer])
+
+  function updateSetting<K extends keyof AppSettings>(key:K,value:AppSettings[K]) {
+    setSettings(current=>({...current,[key]:value}))
+  }
+
+  async function testNotification() {
+    try {
+      if(!('Notification' in window)) {
+        setNotice('Las notificaciones del navegador no están disponibles aquí.')
+        return
+      }
+      let permission=Notification.permission
+      if(permission==='default') permission=await Notification.requestPermission()
+      if(permission!=='granted') {
+        setNotice('Permiso de notificaciones no concedido.')
+        return
+      }
+      new Notification("YOSE'S PROJECT",{body:'Recordatorio diario de prueba. Registra el día y sigue construyendo el patrón.'})
+      setNotice('Notificación de prueba enviada.')
+    } catch {
+      setNotice('No se pudo lanzar la notificación de prueba en este navegador.')
+    }
+  }
+
+  function collectStrengthDrafts() {
+    const drafts:Record<string,unknown>={}
+    for(let i=0;i<localStorage.length;i++) {
+      const key=localStorage.key(i)
+      if(key?.startsWith('yoses-strength-draft-')) {
+        try { drafts[key]=JSON.parse(localStorage.getItem(key)||'null') } catch {}
+      }
+    }
+    return drafts
+  }
+
+  function exportBackup() {
+    const payload={
+      app:"YOSE'S PROJECT",
+      version:1,
+      exportedAt:new Date().toISOString(),
+      entries,
+      settings,
+      intervalTimer:timer,
+      strengthDrafts:collectStrengthDrafts()
+    }
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'})
+    const url=URL.createObjectURL(blob)
+    const a=document.createElement('a')
+    a.href=url
+    a.download=`yoses-project-backup-${localIsoDate(new Date())}.json`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    setNotice('Copia de seguridad exportada.')
+  }
+
+  async function importBackup(file:File) {
+    try {
+      const payload=JSON.parse(await file.text())
+      if(!Array.isArray(payload.entries)) throw new Error('Formato no válido')
+      await clearAllEntries()
+      for(const entry of payload.entries) await saveEntry(entry as DailyEntry)
+      if(payload.settings) {
+        const next={...DEFAULT_SETTINGS,...payload.settings}
+        setSettings(next)
+        saveAppSettings(next)
+      }
+      if(payload.intervalTimer) {
+        setTimer(current=>({...current,...payload.intervalTimer}))
+      }
+      if(payload.strengthDrafts&&typeof payload.strengthDrafts==='object') {
+        Object.entries(payload.strengthDrafts).forEach(([key,value])=>localStorage.setItem(key,JSON.stringify(value)))
+      }
+      await onDataChanged()
+      setNotice('Copia restaurada correctamente.')
+    } catch {
+      setNotice('No se pudo importar la copia. Revisa que sea un backup válido de YOSE’S PROJECT.')
+    }
+  }
+
+  async function deleteAllData() {
+    const first=window.confirm('¿Borrar todos los registros, borradores y ajustes de YOSE’S PROJECT?')
+    if(!first)return
+    const second=window.confirm('Esta acción no se puede deshacer. ¿Confirmas el borrado total?')
+    if(!second)return
+    await clearAllEntries()
+    const keys:string[]=[]
+    for(let i=0;i<localStorage.length;i++) {
+      const key=localStorage.key(i)
+      if(key?.startsWith('yoses-')) keys.push(key)
+    }
+    keys.forEach(key=>localStorage.removeItem(key))
+    setSettings(DEFAULT_SETTINGS)
+    setTimer({workSec:60,restSec:180,rounds:5,prepSec:10,soundEnabled:true,vibrationEnabled:true})
+    saveAppSettings(DEFAULT_SETTINGS)
+    await onDataChanged()
+    setNotice('Todos los datos locales han sido borrados.')
+  }
+
+  function toggleFavorite(name:string) {
+    updateSetting('favoriteExercises',settings.favoriteExercises.includes(name)
+      ? settings.favoriteExercises.filter(item=>item!==name)
+      : [...settings.favoriteExercises,name])
+  }
+
+  function togglePlannedDay(day:number) {
+    updateSetting('plannedTrainingDays',settings.plannedTrainingDays.includes(day)
+      ? settings.plannedTrainingDays.filter(item=>item!==day)
+      : [...settings.plannedTrainingDays,day].sort())
+  }
+
+  return <main className="app-shell">
+    <section className="phone-surface settings-screen">
+      <div className="header-nebula settings-nebula" style={{backgroundImage:`url(${ritualNebula})`}} aria-hidden="true" />
+      <header className="topbar detail-topbar settings-topbar">
+        <button className="icon-button" onClick={onBack} aria-label="Volver"><BackIcon/></button>
+        <div className="brand mini detail-brand"><span>YOSE'S</span><small>PROJECT</small></div>
+        <div className="topbar-spacer" aria-hidden="true" />
+      </header>
+      <div className="detail-ritual-wrap settings-ritual-wrap"><RitualHeader compact/></div>
+      <div className="detail-heading settings-heading">
+        <div className="settings-heading-inline"><GearIcon/><h1>AJUSTES</h1></div>
+        <p>CONFIGURA LA APP A TU MANERA</p>
+      </div>
+
+      <section className="entry-card settings-card">
+        <div className="section-title"><span className="sigil">✦</span><span>RECORDATORIO DIARIO</span></div>
+        <button className={`settings-toggle ${settings.reminderEnabled?'on':''}`} onClick={()=>updateSetting('reminderEnabled',!settings.reminderEnabled)}><span>ACTIVAR RECORDATORIO</span><i>{settings.reminderEnabled?'✓':''}</i></button>
+        <label className="settings-field"><span>HORA</span><input type="time" value={settings.reminderTime} onChange={(e:any)=>updateSetting('reminderTime',e.target.value)} disabled={!settings.reminderEnabled}/></label>
+        <button className={`settings-toggle ${settings.reminderOnlyIfUnregistered?'on':''}`} onClick={()=>updateSetting('reminderOnlyIfUnregistered',!settings.reminderOnlyIfUnregistered)} disabled={!settings.reminderEnabled}><span>SÓLO SI HOY NO ESTÁ REGISTRADO</span><i>{settings.reminderOnlyIfUnregistered?'✓':''}</i></button>
+        <button className="settings-action" onClick={testNotification}>PROBAR NOTIFICACIÓN</button>
+        <p className="settings-note">La hora queda configurada desde ya. La programación fiable con el teléfono bloqueado se activará en la APK Android.</p>
+      </section>
+
+      <section className="entry-card settings-card">
+        <div className="section-title"><TimerIcon/><span>INTERVALÓMETRO</span></div>
+        <div className="settings-number-grid">
+          <label><span>INTERVALO</span><div><input type="number" min="1" value={timer.workSec} onChange={(e:any)=>setTimer(current=>({...current,workSec:Math.max(1,Number(e.target.value)||1)}))}/><b>SEG</b></div></label>
+          <label><span>DESCANSO</span><div><input type="number" min="0" value={timer.restSec} onChange={(e:any)=>setTimer(current=>({...current,restSec:Math.max(0,Number(e.target.value)||0)}))}/><b>SEG</b></div></label>
+          <label><span>RONDAS</span><div><input type="number" min="1" value={timer.rounds} onChange={(e:any)=>setTimer(current=>({...current,rounds:Math.max(1,Number(e.target.value)||1)}))}/><b>×</b></div></label>
+          <label><span>CUENTA ATRÁS</span><div><input type="number" min="0" value={timer.prepSec} onChange={(e:any)=>setTimer(current=>({...current,prepSec:Math.max(0,Number(e.target.value)||0)}))}/><b>SEG</b></div></label>
+        </div>
+        <div className="settings-two-col">
+          <button className={`settings-toggle ${timer.soundEnabled?'on':''}`} onClick={()=>setTimer(current=>({...current,soundEnabled:!current.soundEnabled}))}><span>SONIDO</span><i>{timer.soundEnabled?'✓':''}</i></button>
+          <button className={`settings-toggle ${timer.vibrationEnabled?'on':''}`} onClick={()=>setTimer(current=>({...current,vibrationEnabled:!current.vibrationEnabled}))}><span>VIBRACIÓN</span><i>{timer.vibrationEnabled?'✓':''}</i></button>
+        </div>
+      </section>
+
+      <section className="entry-card settings-card">
+        <div className="section-title"><DumbbellIcon/><span>OBJETIVOS</span></div>
+        <div className="settings-number-grid">
+          <label><span>ENTRENOS / SEMANA</span><div><input type="number" min="1" max="7" value={settings.weeklyTrainingGoal} onChange={(e:any)=>updateSetting('weeklyTrainingGoal',Math.min(7,Math.max(1,Number(e.target.value)||1)))}/><b>×</b></div></label>
+          <label><span>PESO OBJETIVO</span><div><input type="number" min="20" max="400" step="0.1" placeholder="—" value={settings.targetWeightKg??''} onChange={(e:any)=>updateSetting('targetWeightKg',e.target.value===''?undefined:Number(e.target.value))}/><b>KG</b></div></label>
+        </div>
+        <div className="planned-days"><span>DÍAS PREVISTOS DE ENTRENAMIENTO</span><div>{weekdayNames.map((name,index)=><button key={name} className={settings.plannedTrainingDays.includes(index)?'active':''} onClick={()=>togglePlannedDay(index)}>{name}</button>)}</div></div>
+      </section>
+
+      <section className="entry-card settings-card">
+        <div className="section-title"><DumbbellIcon/><span>EJERCICIOS FAVORITOS</span></div>
+        <p className="settings-note settings-note-top">Márcalos para poder priorizarlos en el registro de fuerza.</p>
+        <div className="favorite-exercises">{allStrengthExerciseNames().map(name=><button key={name} className={settings.favoriteExercises.includes(name)?'active':''} onClick={()=>toggleFavorite(name)}><i>{settings.favoriteExercises.includes(name)?'✓':''}</i><span>{name}</span></button>)}</div>
+      </section>
+
+      <section className="entry-card settings-card">
+        <div className="section-title"><span className="sigil">◌</span><span>APARIENCIA</span></div>
+        <button className={`settings-toggle ${settings.animationsEnabled?'on':''}`} onClick={()=>updateSetting('animationsEnabled',!settings.animationsEnabled)}><span>ANIMACIONES Y LUNA</span><i>{settings.animationsEnabled?'✓':''}</i></button>
+      </section>
+
+      <section className="entry-card settings-card">
+        <div className="section-title"><span className="sigil">⌁</span><span>DATOS</span></div>
+        <div className="data-actions">
+          <button onClick={exportBackup}>EXPORTAR COPIA DE SEGURIDAD</button>
+          <button onClick={()=>importRef.current?.click()}>IMPORTAR COPIA</button>
+          <input ref={importRef} className="hidden-file-input" type="file" accept="application/json,.json" onChange={(e:any)=>{const file=e.target.files?.[0];if(file)void importBackup(file);e.target.value=''}}/>
+        </div>
+        <p className="settings-note">La copia JSON incluye registros, ajustes, intervalómetro y borradores de fuerza. La exportación CSV tendrá su propia herramienta.</p>
+        <button className="danger-data-button" onClick={deleteAllData}><TrashIcon/> BORRAR TODOS LOS DATOS</button>
+      </section>
+
+      <section className="entry-card settings-card app-info-card">
+        <div className="section-title"><span className="sigil">◇</span><span>APP</span></div>
+        <div><span>YOSE'S PROJECT</span><b>v0.1.0</b></div>
+        <div><span>ALMACENAMIENTO</span><b>LOCAL EN ESTE DISPOSITIVO</b></div>
+        <div><span>REGISTROS</span><b>{entries.length}</b></div>
+      </section>
+
+      {notice&&<div className="settings-notice">{notice}</div>}
+      <button className="secondary-button" onClick={onBack}>VOLVER</button>
+      <footer>CONFIGURA LO NECESARIO. ENTRENA LO IMPORTANTE.</footer>
+    </section>
+  </main>
+}
+
 function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) {
   const [range,setRange]=useState<HistoryRange>('30')
   const [strengthExercise,setStrengthExercise]=useState('')
@@ -511,6 +766,7 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
 }
 
 function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,onDumped:()=>void}) {
+  const favoriteExercises=useMemo(()=>loadAppSettings().favoriteExercises,[])
   const [exercises,setExercises] = useState<TrainingExercise[]>([createStrengthExercise()])
   const [savedDraft,setSavedDraft] = useState(false)
   const [dumped,setDumped] = useState(false)
@@ -625,7 +881,7 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
 
           <div className="strength-select-grid">
             <label><span>GRUPO MUSCULAR</span><select value={exercise.muscleGroup} onChange={(e:any)=>changeGroup(index,e.target.value)}>{Object.keys(STRENGTH_EXERCISES).map(group=><option key={group}>{group}</option>)}</select></label>
-            <label><span>EJERCICIO</span><select value={exercise.name} onChange={(e:any)=>updateExercise(index,{name:e.target.value})}>{(STRENGTH_EXERCISES[exercise.muscleGroup]||['Otro']).map(name=><option key={name}>{name}</option>)}</select></label>
+            <label><span>EJERCICIO</span><select value={exercise.name} onChange={(e:any)=>updateExercise(index,{name:e.target.value})}>{[...(STRENGTH_EXERCISES[exercise.muscleGroup]||['Otro'])].sort((a,b)=>Number(favoriteExercises.includes(b))-Number(favoriteExercises.includes(a))).map(name=><option key={name}>{favoriteExercises.includes(name)?'★ ':''}{name}</option>)}</select></label>
           </div>
 
           <label className="strength-load"><span>CARGA</span><div><input type="number" inputMode="decimal" min="0" step="0.5" placeholder="—" value={exercise.loadKg ?? ''} onChange={(e:any)=>updateExercise(index,{loadKg:e.target.value===''?undefined:Number(e.target.value)})}/><b>KG</b></div></label>
@@ -659,8 +915,7 @@ function App() {
   const [entries, setEntries] = useState<DailyEntry[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [showSettings, setShowSettings] = useState(false)
-  const [screen,setScreen] = useState<'home'|'timer'|'strength'|'history'>('home')
+  const [screen,setScreen] = useState<'home'|'timer'|'strength'|'history'|'settings'>('home')
   const homeSwipeStart = useRef<{x:number,y:number} | null>(null)
 
   async function refresh() {
@@ -668,7 +923,7 @@ function App() {
     setLoading(false)
   }
 
-  useEffect(() => { void refresh() }, [])
+  useEffect(() => { void refresh(); saveAppSettings(loadAppSettings()) }, [])
 
   const entriesByDate = useMemo(() => new Map(entries.map(e => [e.date, e])), [entries])
   const monthPrefix = `${cursor.getFullYear()}-${`${cursor.getMonth()+1}`.padStart(2,'0')}`
@@ -706,6 +961,10 @@ function App() {
     return <HistoryScreen entries={entries} onBack={()=>setScreen('home')} />
   }
 
+  if (screen === 'settings') {
+    return <SettingsScreen entries={entries} onBack={()=>setScreen('home')} onDataChanged={refresh} />
+  }
+
   const year = cursor.getFullYear(); const month = cursor.getMonth()
   const total = daysInMonth(year, month)
   const offset = mondayIndex(new Date(year, month, 1).getDay())
@@ -723,7 +982,7 @@ function App() {
       <div className="header-nebula" style={{backgroundImage:`url(${ritualNebula})`}} aria-hidden="true" />
       <header className="topbar">
         <div className="brand"><span>YOSE'S</span><small>PROJECT</small></div>
-        <button className="icon-button" onClick={() => setShowSettings(v=>!v)} aria-label="Ajustes"><GearIcon/></button>
+        <button className="icon-button" onClick={() => setScreen('settings')} aria-label="Ajustes"><GearIcon/></button>
       </header>
 
       <div className="hero-copy left">DISCIPLINA<br/>CONSTRUYE<br/><em>LIBERTAD</em></div>
@@ -769,7 +1028,6 @@ function App() {
       <div className="home-swipe-nav"><button className="swipe-hint" onClick={()=>setScreen('strength')}>DATOS DE ENTRENAMIENTO →</button><button className="swipe-hint" onClick={()=>setScreen('timer')}>← INTERVALÓMETRO</button></div>
       <footer>DISCIPLINA HOY. UN MAÑANA DIFERENTE.</footer>
 
-      {showSettings && <div className="settings-popover"><strong>AJUSTES</strong><p>Las notificaciones y la hora diaria se incorporarán en la fase Android/Capacitor.</p></div>}
       {loading && <div className="loading">CARGANDO REGISTRO…</div>}
     </section>
   </main>

@@ -306,3 +306,58 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;ba
   .strength-history-metrics{grid-template-columns:1fr 1fr}
   .strength-history-metrics span:last-child{grid-column:1/-1}
 }
+
+.settings-screen{padding-bottom:30px}
+.settings-nebula{height:290px;opacity:.48}
+.settings-topbar{position:relative;z-index:4}
+.settings-ritual-wrap{height:105px;margin:2px 0 4px}
+.settings-screen .settings-ritual-wrap .ritual.compact{height:101px;width:100%;margin:0}
+.settings-heading{margin-bottom:15px}
+.settings-heading-inline{display:flex;align-items:center;justify-content:center;gap:10px}
+.settings-heading-inline .line-icon{width:21px;height:21px;color:var(--acid)}
+.settings-heading h1{font-size:22px;margin:0}
+.settings-card{padding:14px;margin-bottom:11px}
+.settings-toggle{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;background:#070908;color:#a0aaa0;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:7px;font-weight:800;letter-spacing:1.2px;cursor:pointer;margin-top:8px;text-align:left}
+.settings-toggle.on{border-color:rgba(207,255,26,.38);color:#e3e9df;background:rgba(207,255,26,.035)}
+.settings-toggle:disabled{opacity:.35;cursor:default}
+.settings-toggle i{width:18px;height:18px;border:1px solid rgba(255,255,255,.2);border-radius:5px;display:grid;place-items:center;color:var(--acid);font-style:normal;flex:0 0 auto}
+.settings-toggle.on i{border-color:var(--acid);background:rgba(207,255,26,.08)}
+.settings-field{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.settings-field>span,.settings-number-grid label>span,.planned-days>span{font-size:6px;letter-spacing:1.2px;color:#879087}
+.settings-field input{height:44px;border:1px solid var(--line);border-radius:9px;background:#070908;color:#ecf0e9;padding:0 11px;outline:none}
+.settings-field input:disabled{opacity:.35}
+.settings-action{width:100%;height:40px;margin-top:9px;border:1px solid rgba(207,255,26,.3);border-radius:9px;background:rgba(207,255,26,.04);color:var(--acid);font-size:7px;font-weight:800;letter-spacing:1.4px;cursor:pointer}
+.settings-note{font-size:8px;line-height:1.55;color:#7f8980;margin:9px 2px 0}
+.settings-note-top{margin-top:-2px;margin-bottom:10px}
+.settings-number-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.settings-number-grid label{display:flex;flex-direction:column;gap:6px}
+.settings-number-grid label>div{height:46px;border:1px solid var(--line);border-radius:9px;background:#070908;display:grid;grid-template-columns:1fr 45px;overflow:hidden}
+.settings-number-grid input{min-width:0;border:0;background:transparent;color:#edf1ea;outline:none;padding:0 10px;font-size:16px;font-weight:760}
+.settings-number-grid b{display:grid;place-items:center;border-left:1px solid rgba(255,255,255,.07);font-size:7px;color:var(--acid);letter-spacing:1px}
+.settings-number-grid input::-webkit-outer-spin-button,.settings-number-grid input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.settings-number-grid input[type=number]{-moz-appearance:textfield}
+.settings-two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.planned-days{margin-top:12px;display:flex;flex-direction:column;gap:7px}
+.planned-days>div{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.planned-days button{aspect-ratio:1;border:1px solid var(--line);border-radius:9px;background:#070908;color:#889188;font-size:8px;font-weight:800;cursor:pointer}
+.planned-days button.active{border-color:var(--acid);background:rgba(207,255,26,.08);color:var(--acid)}
+.favorite-exercises{display:flex;flex-direction:column;gap:6px;max-height:330px;overflow:auto;padding-right:2px}
+.favorite-exercises button{min-height:40px;border:1px solid rgba(255,255,255,.09);border-radius:9px;background:#070908;color:#a5aea5;display:flex;align-items:center;gap:9px;padding:0 10px;text-align:left;font-size:8px;cursor:pointer}
+.favorite-exercises button.active{border-color:rgba(207,255,26,.35);color:#e5eae2}
+.favorite-exercises i{width:17px;height:17px;border:1px solid rgba(255,255,255,.18);border-radius:5px;display:grid;place-items:center;color:var(--acid);font-style:normal;flex:0 0 auto}
+.favorite-exercises button.active i{border-color:var(--acid);background:rgba(207,255,26,.07)}
+.data-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.data-actions button{min-height:44px;border:1px solid rgba(207,255,26,.28);border-radius:9px;background:rgba(207,255,26,.035);color:#dce3da;font-size:7px;font-weight:800;letter-spacing:1px;cursor:pointer;padding:8px}
+.hidden-file-input{display:none}
+.danger-data-button{width:100%;height:44px;margin-top:12px;border:1px solid rgba(255,255,255,.15);border-radius:9px;background:#070908;color:#a7aea7;display:flex;align-items:center;justify-content:center;gap:8px;font-size:7px;font-weight:800;letter-spacing:1.2px;cursor:pointer}
+.danger-data-button .line-icon{width:17px;height:17px}
+.app-info-card>div:not(.section-title){min-height:36px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.app-info-card>div:not(.section-title) span{font-size:6px;letter-spacing:1.1px;color:#7f8980}
+.app-info-card>div:not(.section-title) b{font-size:7px;letter-spacing:.8px;color:#c9d0c8;text-align:right}
+.settings-notice{position:relative;z-index:2;border:1px solid rgba(207,255,26,.3);border-radius:10px;background:rgba(207,255,26,.045);color:#c9d1c6;padding:10px 12px;margin:0 0 8px;font-size:8px;line-height:1.45;text-align:center}
+.animations-off .ritual-moon-layer,.animations-off .ritual-lines path,.animations-off .ritual-lines circle,.animations-off .ritual-core{animation:none!important}
+.animations-off .ritual-lines path,.animations-off .ritual-lines circle{stroke-dashoffset:0!important}
+.animations-off .ritual-core{opacity:1!important}
+@media(max-width:380px){
+  .settings-number-grid,.settings-two-col,.data-actions{grid-template-columns:1fr}
+}

@@ -66,3 +66,17 @@ export async function deleteEntry(date: string): Promise<void> {
     tx.onerror = () => reject(tx.error)
   })
 }
+
+
+export async function clearAllEntries(): Promise<void> {
+  const db = await openDb()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    tx.objectStore(STORE_NAME).clear()
+    tx.oncomplete = () => {
+      db.close()
+      resolve()
+    }
+    tx.onerror = () => reject(tx.error)
+  })
+}
