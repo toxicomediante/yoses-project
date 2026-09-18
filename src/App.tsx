@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getAllEntries, getEntry, saveEntry } from './storage'
 import type { AlcoholStatus, DailyEntry } from './types'
+import ritualNebula from './assets/ritual-nebula.jpg'
+import ritualMoon from './assets/ritual-moon.png'
 
 const ES_MONTHS = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE']
 const ES_WEEKDAYS = ['L','M','X','J','V','S','D']
@@ -36,6 +38,8 @@ function BackIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path 
 function RitualHeader({compact=false}:{compact?:boolean}) {
   return <div className={`ritual ${compact ? 'compact' : ''}`} aria-hidden="true">
     <svg viewBox="0 0 360 150" preserveAspectRatio="xMidYMid meet">
+      <image href={ritualNebula} x="0" y="0" width="360" height="150" preserveAspectRatio="xMidYMid slice" className="ritual-nebula-image" />
+      <image href={ritualMoon} x="134" y="31" width="92" height="92" preserveAspectRatio="xMidYMid meet" className="ritual-moon-image" />
       <g className="ritual-lines">
         <path d="M180 4v138"/>
         <path d="M91 86h178"/>
