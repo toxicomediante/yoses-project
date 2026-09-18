@@ -38,21 +38,23 @@ function BackIcon(){return <svg viewBox="0 0 24 24" className="line-icon"><path 
 function RitualHeader({compact=false}:{compact?:boolean}) {
   return <div className={`ritual ${compact ? 'compact' : ''}`} aria-hidden="true">
     <svg viewBox="0 0 360 150" preserveAspectRatio="xMidYMid meet">
-      <g className="ritual-moon-layer">
-        <image href={ritualMoon} x="134" y="31" width="92" height="92" preserveAspectRatio="xMidYMid meet" className="ritual-moon-image" />
-      </g>
+      <g className="ritual-emblem">
+        <g className="ritual-moon-layer">
+          <image href={ritualMoon} x="134" y="31" width="92" height="92" preserveAspectRatio="xMidYMid meet" className="ritual-moon-image" />
+        </g>
 
-      <g className="ritual-lines ritual-structure">
-        <path d="M180 4v138"/>
-        <path d="M90 86h180"/>
-        <path d="M180 24 145 78l35 46 35-46Z"/>
-        <circle cx="180" cy="77" r="46"/>
-        <circle cx="180" cy="77" r="30" strokeDasharray="3 6"/>
-        <path d="M144 20a50 50 0 0 0 72 0 43 43 0 0 1-72 0Z"/>
-        <path d="M155 20c8 8 17 12 25 12s17-4 25-12"/>
-      </g>
+        <g className="ritual-lines ritual-structure">
+          <path d="M180 4v138"/>
+          <path d="M90 86h180"/>
+          <path d="M180 24 145 78l35 46 35-46Z"/>
+          <circle cx="180" cy="77" r="46"/>
+          <circle cx="180" cy="77" r="30" strokeDasharray="3 6"/>
+          <path d="M144 20a50 50 0 0 0 72 0 43 43 0 0 1-72 0Z"/>
+          <path d="M155 20c8 8 17 12 25 12s17-4 25-12"/>
+        </g>
 
-      <circle className="ritual-core" cx="180" cy="77" r="13"/>
+        <circle className="ritual-core" cx="180" cy="77" r="13"/>
+      </g>
     </svg>
   </div>
 }
