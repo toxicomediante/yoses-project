@@ -10,6 +10,7 @@ export interface DailyEntry {
   alcohol: AlcoholStatus
   alcoholCategories?: AlcoholCategory[]
   alcoholAmounts?: Partial<Record<AlcoholCategory, number>>
+  alcoholNotes?: string
   trained: boolean
   trainingMinutes?: number
   trainingType?: string

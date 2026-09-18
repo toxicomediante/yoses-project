@@ -104,3 +104,9 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;ba
   .alcohol-amount{grid-template-columns:1fr 38px}
   .alcohol-amount input{width:38px}
 }
+
+.alcohol-context{display:flex;flex-direction:column;gap:7px;margin-top:3px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)}
+.alcohol-context>span{font-size:6px;letter-spacing:1.4px;color:#8d968d}
+.alcohol-context textarea{width:100%;min-height:84px;resize:vertical;border:1px solid var(--line);border-radius:10px;background:#070908;color:#e6ebe3;padding:11px;font-size:10px;line-height:1.5;outline:none}
+.alcohol-context textarea::placeholder{color:#667067}
+.alcohol-context textarea:focus{border-color:rgba(207,255,26,.7);box-shadow:0 0 16px rgba(207,255,26,.05)}

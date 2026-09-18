@@ -183,6 +183,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
   const [alcoholDetailOpen,setAlcoholDetailOpen] = useState(false)
   const [alcoholCategories,setAlcoholCategories] = useState<AlcoholCategory[]>([])
   const [alcoholAmounts,setAlcoholAmounts] = useState<Partial<Record<AlcoholCategory, number>>>({})
+  const [alcoholNotes,setAlcoholNotes] = useState('')
   const [trained,setTrained] = useState(false)
   const [trainingMinutes,setTrainingMinutes] = useState<number | undefined>()
   const [trainingType,setTrainingType] = useState('Fuerza')
@@ -199,7 +200,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
     void getEntry(date).then(e => {
       setHasExistingRecord(Boolean(e))
       if (!e) return
-      setAlcohol(e.alcohol); setAlcoholCategories(e.alcoholCategories || []); setAlcoholAmounts(e.alcoholAmounts || {}); setAlcoholDetailOpen(e.alcohol === 'alcohol'); setTrained(e.trained); setTrainingMinutes(e.trainingMinutes); setTrainingType(e.trainingType || 'Fuerza'); setExercises(e.exercises?.length ? e.exercises.map(item => item.name) : [''])
+      setAlcohol(e.alcohol); setAlcoholCategories(e.alcoholCategories || []); setAlcoholAmounts(e.alcoholAmounts || {}); setAlcoholNotes(e.alcoholNotes || ''); setAlcoholDetailOpen(e.alcohol === 'alcohol'); setTrained(e.trained); setTrainingMinutes(e.trainingMinutes); setTrainingType(e.trainingType || 'Fuerza'); setExercises(e.exercises?.length ? e.exercises.map(item => item.name) : [''])
       setEnergy(e.energy); setMood(e.mood); setSleep(e.sleep); setWeightKg(e.weightKg); setNotes(e.notes || '')
     })
   }, [date])
@@ -220,7 +221,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
 
   async function handleSave() {
     const cleanExercises = exercises.map(name => name.trim()).filter(Boolean).map(name => ({ name }))
-    const entry: DailyEntry = { date, alcohol, alcoholCategories: alcohol === 'alcohol' ? alcoholCategories : undefined, alcoholAmounts: alcohol === 'alcohol' ? alcoholAmounts : undefined, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, exercises: trained && cleanExercises.length ? cleanExercises : undefined, energy, mood, sleep, weightKg, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
+    const entry: DailyEntry = { date, alcohol, alcoholCategories: alcohol === 'alcohol' ? alcoholCategories : undefined, alcoholAmounts: alcohol === 'alcohol' ? alcoholAmounts : undefined, alcoholNotes: alcohol === 'alcohol' && alcoholNotes.trim() ? alcoholNotes.trim() : undefined, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, exercises: trained && cleanExercises.length ? cleanExercises : undefined, energy, mood, sleep, weightKg, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
     await saveEntry(entry)
     setHasExistingRecord(true)
     setSaved(true)
@@ -294,6 +295,16 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
                 </label>}
               </div>
             })}
+
+            <label className="alcohol-context">
+              <span>CONTEXTO DEL CONSUMO</span>
+              <textarea
+                value={alcoholNotes}
+                onChange={(e:any)=>setAlcoholNotes(e.target.value)}
+                placeholder="Ej.: cumpleaños de X, cena fuera, evento social, celebración…"
+                rows={3}
+              />
+            </label>
           </div>}
         </div>}
 
