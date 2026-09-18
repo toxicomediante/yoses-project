@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { deleteEntry, getAllEntries, getEntry, saveEntry } from './storage'
-import type { AlcoholCategory, AlcoholStatus, DailyEntry } from './types'
+import type { AlcoholCategory, AlcoholStatus, DailyEntry, TrainingExercise } from './types'
 import ritualNebula from './assets/ritual-nebula.png'
 import ritualMoon from './assets/ritual-moon.png'
 
@@ -72,6 +72,21 @@ function Rating({label, value, onChange}:{label:string,value?:number,onChange:(v
   </div>
 }
 
+
+const STRENGTH_EXERCISES: Record<string,string[]> = {
+  'Pierna': ['Sentadilla con barra','Sentadilla frontal','Prensa de piernas','Peso muerto rumano','Zancadas','Extensión de cuádriceps','Curl femoral','Elevación de gemelos'],
+  'Pecho': ['Press de banca plano','Press inclinado','Press con mancuernas','Fondos','Aperturas'],
+  'Espalda': ['Remo con barra','Remo con mancuerna','Dominadas','Jalón al pecho','Peso muerto','Remo en máquina'],
+  'Hombro': ['Press militar','Press con mancuernas','Elevaciones laterales','Pájaros','Face pull'],
+  'Bíceps': ['Curl de bíceps','Curl martillo','Curl predicador'],
+  'Tríceps': ['Press cerrado','Extensión de tríceps','Press francés','Fondos de tríceps'],
+  'Core': ['Plancha','Crunch en polea','Elevación de piernas','Rueda abdominal'],
+  'Otro': ['Otro']
+}
+
+function createStrengthExercise(): TrainingExercise {
+  return { muscleGroup:'Pierna', name:'Sentadilla con barra', loadKg:0, sets:[{reps:5}] }
+}
 
 type TimerPhase = 'idle' | 'prepare' | 'work' | 'rest' | 'done'
 
@@ -322,6 +337,150 @@ function IntervalTimerScreen({onBack}:{onBack:()=>void}) {
   </main>
 }
 
+
+function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,onDumped:()=>void}) {
+  const [exercises,setExercises] = useState<TrainingExercise[]>([createStrengthExercise()])
+  const [savedDraft,setSavedDraft] = useState(false)
+  const [dumped,setDumped] = useState(false)
+  const swipeStart = useRef<{x:number,y:number}|null>(null)
+  const draftKey = `yoses-strength-draft-${date}`
+
+  useEffect(() => {
+    const raw = localStorage.getItem(draftKey)
+    if (!raw) return
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed) && parsed.length) setExercises(parsed)
+    } catch {}
+  }, [draftKey])
+
+  useEffect(() => {
+    localStorage.setItem(draftKey,JSON.stringify(exercises))
+    setSavedDraft(true)
+    const timer=window.setTimeout(()=>setSavedDraft(false),700)
+    return ()=>window.clearTimeout(timer)
+  }, [draftKey,exercises])
+
+  function updateExercise(index:number,patch:Partial<TrainingExercise>) {
+    setExercises(current=>current.map((item,i)=>i===index?{...item,...patch}:item))
+  }
+
+  function changeGroup(index:number,muscleGroup:string) {
+    const nextName=STRENGTH_EXERCISES[muscleGroup]?.[0] || 'Otro'
+    updateExercise(index,{muscleGroup,name:nextName})
+  }
+
+  function addSet(exerciseIndex:number) {
+    setExercises(current=>current.map((exercise,i)=>i===exerciseIndex?{...exercise,sets:[...exercise.sets,{reps:exercise.sets.at(-1)?.reps ?? 5}]}:exercise))
+  }
+
+  function updateSet(exerciseIndex:number,setIndex:number,reps:number) {
+    setExercises(current=>current.map((exercise,i)=>{
+      if(i!==exerciseIndex)return exercise
+      return {...exercise,sets:exercise.sets.map((set,j)=>j===setIndex?{...set,reps}:set)}
+    }))
+  }
+
+  function removeSet(exerciseIndex:number,setIndex:number) {
+    setExercises(current=>current.map((exercise,i)=>{
+      if(i!==exerciseIndex)return exercise
+      const sets=exercise.sets.filter((_,j)=>j!==setIndex)
+      return {...exercise,sets:sets.length?sets:[{reps:5}]}
+    }))
+  }
+
+  async function dumpToDailyEntry() {
+    const valid = exercises
+      .filter(exercise=>exercise.name.trim() && exercise.sets.length)
+      .map(exercise=>({...exercise,name:exercise.name.trim(),loadKg:Number(exercise.loadKg)||0,sets:exercise.sets.map(set=>({reps:Math.max(0,Number(set.reps)||0)}))}))
+    if (!valid.length) return
+
+    const current = await getEntry(date)
+    const entry: DailyEntry = current ? {
+      ...current,
+      trained:true,
+      trainingType:'Fuerza',
+      exercises:valid,
+      updatedAt:new Date().toISOString()
+    } : {
+      date,
+      alcohol:null,
+      trained:true,
+      trainingType:'Fuerza',
+      exercises:valid,
+      updatedAt:new Date().toISOString()
+    }
+    await saveEntry(entry)
+    setDumped(true)
+    window.setTimeout(()=>setDumped(false),1600)
+    onDumped()
+  }
+
+  const totalSets=exercises.reduce((sum,e)=>sum+e.sets.length,0)
+
+  return <main className="app-shell">
+    <section
+      className="phone-surface strength-screen"
+      onTouchStart={(e:any)=>{const t=e.changedTouches[0];swipeStart.current={x:t.clientX,y:t.clientY}}}
+      onTouchEnd={(e:any)=>{const start=swipeStart.current;if(!start)return;const t=e.changedTouches[0];const dx=t.clientX-start.x;const dy=t.clientY-start.y;if(dx<-70&&Math.abs(dx)>Math.abs(dy)*1.25)onBack();swipeStart.current=null}}
+    >
+      <div className="header-nebula strength-nebula" style={{backgroundImage:`url(${ritualNebula})`}} aria-hidden="true" />
+      <header className="topbar detail-topbar strength-topbar">
+        <button className="icon-button" onClick={onBack} aria-label="Volver al calendario"><BackIcon/></button>
+        <div className="brand mini detail-brand"><span>YOSE'S</span><small>PROJECT</small></div>
+        <div className="topbar-spacer" aria-hidden="true" />
+      </header>
+
+      <div className="detail-ritual-wrap strength-ritual-wrap"><RitualHeader compact/></div>
+
+      <div className="detail-heading strength-heading">
+        <div className="strength-heading-inline"><DumbbellIcon active/><h1>ENTRENAMIENTO</h1></div>
+        <p>REGISTRO DE FUERZA · {date.split('-').reverse().join('/')}</p>
+      </div>
+
+      <section className="strength-summary">
+        <span><b>{exercises.length}</b> EJERCICIOS</span>
+        <span><b>{totalSets}</b> SERIES</span>
+        <span className={savedDraft?'saved':''}>BORRADOR {savedDraft?'✓':''}</span>
+      </section>
+
+      <div className="strength-exercises">
+        {exercises.map((exercise,index)=><section className="entry-card strength-exercise-card" key={index}>
+          <div className="strength-card-head">
+            <div><span>EJERCICIO {index+1}</span><strong>{exercise.name}</strong></div>
+            {exercises.length>1&&<button onClick={()=>setExercises(current=>current.filter((_,i)=>i!==index))} aria-label="Eliminar ejercicio">×</button>}
+          </div>
+
+          <div className="strength-select-grid">
+            <label><span>GRUPO MUSCULAR</span><select value={exercise.muscleGroup} onChange={(e:any)=>changeGroup(index,e.target.value)}>{Object.keys(STRENGTH_EXERCISES).map(group=><option key={group}>{group}</option>)}</select></label>
+            <label><span>EJERCICIO</span><select value={exercise.name} onChange={(e:any)=>updateExercise(index,{name:e.target.value})}>{(STRENGTH_EXERCISES[exercise.muscleGroup]||['Otro']).map(name=><option key={name}>{name}</option>)}</select></label>
+          </div>
+
+          <label className="strength-load"><span>CARGA</span><div><input type="number" inputMode="decimal" min="0" step="0.5" value={exercise.loadKg ?? ''} onChange={(e:any)=>updateExercise(index,{loadKg:e.target.value===''?0:Number(e.target.value)})}/><b>KG</b></div></label>
+
+          <div className="strength-sets">
+            <div className="strength-sets-head"><span>SERIES REALES</span><small>REP.</small></div>
+            {exercise.sets.map((set,setIndex)=><div className="strength-set-row" key={setIndex}>
+              <b>SERIE {setIndex+1}</b>
+              <input type="number" inputMode="numeric" min="0" max="99" value={set.reps} onChange={(e:any)=>updateSet(index,setIndex,Number(e.target.value)||0)}/>
+              <button onClick={()=>removeSet(index,setIndex)} aria-label={`Eliminar serie ${setIndex+1}`}>×</button>
+            </div>)}
+            <button className="add-set-button" onClick={()=>addSet(index)}>+ AÑADIR SERIE</button>
+          </div>
+        </section>)}
+      </div>
+
+      <button className="add-strength-exercise" onClick={()=>setExercises(current=>[...current,createStrengthExercise()])}>+ AÑADIR EJERCICIO</button>
+
+      <button className="primary-button dump-button" onClick={dumpToDailyEntry}>{dumped?'DATOS VOLCADOS ✓':'VOLCAR DATOS A FICHA'} <span>{dumped?'':'→'}</span></button>
+      <p className="dump-help">Guarda este entrenamiento como FUERZA en la ficha de hoy. El borrador permanecerá disponible durante el día.</p>
+
+      <button className="swipe-hint" onClick={onBack}>DESLIZA ← PARA VOLVER AL CALENDARIO</button>
+      <footer>REGISTRA LO QUE HICISTE. NO LO QUE PLANEABAS.</footer>
+    </section>
+  </main>
+}
+
 function App() {
   const today = useMemo(() => new Date(), [])
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
@@ -329,7 +488,7 @@ function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
-  const [screen,setScreen] = useState<'home'|'timer'>('home')
+  const [screen,setScreen] = useState<'home'|'timer'|'strength'>('home')
   const homeSwipeStart = useRef<{x:number,y:number} | null>(null)
 
   async function refresh() {
@@ -367,6 +526,10 @@ function App() {
     return <IntervalTimerScreen onBack={()=>setScreen('home')} />
   }
 
+  if (screen === 'strength') {
+    return <StrengthLogScreen date={localIsoDate(today)} onBack={()=>setScreen('home')} onDumped={()=>void refresh()} />
+  }
+
   const year = cursor.getFullYear(); const month = cursor.getMonth()
   const total = daysInMonth(year, month)
   const offset = mondayIndex(new Date(year, month, 1).getDay())
@@ -379,7 +542,7 @@ function App() {
     <section
       className="phone-surface home-screen"
       onTouchStart={(e:any)=>{const t=e.changedTouches[0];homeSwipeStart.current={x:t.clientX,y:t.clientY}}}
-      onTouchEnd={(e:any)=>{const start=homeSwipeStart.current;if(!start)return;const t=e.changedTouches[0];const dx=t.clientX-start.x;const dy=t.clientY-start.y;if(dx<-70&&Math.abs(dx)>Math.abs(dy)*1.25)setScreen('timer');homeSwipeStart.current=null}}
+      onTouchEnd={(e:any)=>{const start=homeSwipeStart.current;if(!start)return;const t=e.changedTouches[0];const dx=t.clientX-start.x;const dy=t.clientY-start.y;if(dx<-70&&Math.abs(dx)>Math.abs(dy)*1.25)setScreen('timer');else if(dx>70&&Math.abs(dx)>Math.abs(dy)*1.25)setScreen('strength');homeSwipeStart.current=null}}
     >
       <div className="header-nebula" style={{backgroundImage:`url(${ritualNebula})`}} aria-hidden="true" />
       <header className="topbar">
@@ -427,7 +590,7 @@ function App() {
 
       <button className="primary-button" onClick={()=>setSelectedDate(localIsoDate(today))}>REGISTRAR HOY <span>→</span></button>
       <button className="secondary-button" onClick={()=>alert('Histórico: siguiente pantalla del vertical slice.')}>VER HISTÓRICO</button>
-      <button className="swipe-hint" onClick={()=>setScreen('timer')}>← DESLIZA PARA INTERVALÓMETRO</button>
+      <div className="home-swipe-nav"><button className="swipe-hint" onClick={()=>setScreen('strength')}>DATOS DE ENTRENAMIENTO →</button><button className="swipe-hint" onClick={()=>setScreen('timer')}>← INTERVALÓMETRO</button></div>
       <footer>DISCIPLINA HOY. UN MAÑANA DIFERENTE.</footer>
 
       {showSettings && <div className="settings-popover"><strong>AJUSTES</strong><p>Las notificaciones y la hora diaria se incorporarán en la fase Android/Capacitor.</p></div>}
@@ -482,7 +645,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
   }
 
   async function handleSave() {
-    const cleanExercises = exercises.map(name => name.trim()).filter(Boolean).map(name => ({ name }))
+    const cleanExercises: TrainingExercise[] = exercises.map(name => name.trim()).filter(Boolean).map(name => ({ muscleGroup:'Otro', name, loadKg:0, sets:[{reps:0}] }))
     const entry: DailyEntry = { date, alcohol, alcoholCategories: alcohol === 'alcohol' ? alcoholCategories : undefined, alcoholAmounts: alcohol === 'alcohol' ? alcoholAmounts : undefined, alcoholNotes: alcohol === 'alcohol' && alcoholNotes.trim() ? alcoholNotes.trim() : undefined, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, exercises: trained && cleanExercises.length ? cleanExercises : undefined, energy, mood, sleep, weightKg, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
     await saveEntry(entry)
     setHasExistingRecord(true)
