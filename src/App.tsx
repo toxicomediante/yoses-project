@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { clearAllEntries, deleteEntry, getAllEntries, getEntry, saveEntry } from './storage'
+import { App as CapacitorApp } from '@capacitor/app'
+import { Capacitor } from '@capacitor/core'
+import { clearAllEntries, deleteEntry, getAllEntries, getEntry, saveEntry, syncNativeWidgets } from './storage'
 import type { AlcoholCategory, AlcoholStatus, DailyEntry, TrainingExercise } from './types'
 import ritualNebula from './assets/ritual-nebula.png'
 import ritualMoon from './assets/ritual-moon.png'
@@ -121,6 +123,7 @@ function loadAppSettings(): AppSettings {
 function saveAppSettings(settings:AppSettings) {
   localStorage.setItem('yoses-settings',JSON.stringify(settings))
   document.documentElement.classList.toggle('animations-off',!settings.animationsEnabled)
+  void syncNativeWidgets()
 }
 
 function allStrengthExerciseNames() {
@@ -147,6 +150,7 @@ function IntervalTimerScreen({onBack}:{onBack:()=>void}) {
   const [round,setRound] = useState(1)
   const [running,setRunning] = useState(false)
   const [remainingMs,setRemainingMs] = useState(workSec * 1000)
+  const [timerHydrated,setTimerHydrated] = useState(false)
   const [phaseEndAt,setPhaseEndAt] = useState<number | null>(null)
   const lastCueSecond = useRef<number | null>(null)
   const audioContext = useRef<AudioContext | null>(null)
@@ -164,10 +168,12 @@ function IntervalTimerScreen({onBack}:{onBack:()=>void}) {
       if (typeof parsed.soundEnabled === 'boolean') setSoundEnabled(parsed.soundEnabled)
       if (typeof parsed.vibrationEnabled === 'boolean') setVibrationEnabled(parsed.vibrationEnabled)
     } catch {}
+    setTimerHydrated(true)
   }, [])
 
   useEffect(() => {
     localStorage.setItem('yoses-interval-timer', JSON.stringify({workSec,restSec,rounds,prepSec,soundEnabled,vibrationEnabled}))
+    void syncNativeWidgets()
     if (phase === 'idle') setRemainingMs(workSec * 1000)
   }, [workSec,restSec,rounds,prepSec,soundEnabled,vibrationEnabled,phase])
 
@@ -268,6 +274,14 @@ function IntervalTimerScreen({onBack}:{onBack:()=>void}) {
     if (prepSec > 0) enterPhase('prepare',1)
     else enterPhase('work',1)
   }
+
+  useEffect(() => {
+    if (!timerHydrated || phase !== 'idle') return
+    if (sessionStorage.getItem('yoses-timer-autostart') !== '1') return
+    sessionStorage.removeItem('yoses-timer-autostart')
+    window.setTimeout(() => startTimer(), 50)
+  }, [timerHydrated])
+
 
   function pauseResume() {
     if (phase === 'idle' || phase === 'done') return
@@ -784,6 +798,7 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
 
   useEffect(() => {
     localStorage.setItem(draftKey,JSON.stringify(exercises))
+    void syncNativeWidgets()
     setSavedDraft(true)
     const timer=window.setTimeout(()=>setSavedDraft(false),700)
     return ()=>window.clearTimeout(timer)
@@ -921,9 +936,44 @@ function App() {
   async function refresh() {
     setEntries(await getAllEntries())
     setLoading(false)
+    void syncNativeWidgets()
   }
 
   useEffect(() => { void refresh(); saveAppSettings(loadAppSettings()) }, [])
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+
+    const navigate = (url?: string) => {
+      if (!url) return
+      try {
+        const parsed = new URL(url)
+        const route = (parsed.hostname || parsed.pathname.replace(/^\//,'')).toLowerCase()
+        setSelectedDate(null)
+        if (route === 'today') {
+          setScreen('home')
+          setSelectedDate(localIsoDate(today))
+        } else if (route === 'history' || route === 'week') {
+          setScreen('history')
+        } else if (route === 'strength') {
+          setScreen('strength')
+        } else if (route === 'timer') {
+          if (parsed.searchParams.get('start') === '1') sessionStorage.setItem('yoses-timer-autostart','1')
+          setScreen('timer')
+        } else {
+          setScreen('home')
+        }
+      } catch {}
+    }
+
+    let removeListener: (() => Promise<void>) | undefined
+    void CapacitorApp.getLaunchUrl().then(result => navigate(result?.url))
+    void CapacitorApp.addListener('appUrlOpen', event => navigate(event.url)).then(handle => {
+      removeListener = () => handle.remove()
+    })
+
+    return () => { if (removeListener) void removeListener() }
+  }, [today])
 
   const entriesByDate = useMemo(() => new Map(entries.map(e => [e.date, e])), [entries])
   const monthPrefix = `${cursor.getFullYear()}-${`${cursor.getMonth()+1}`.padStart(2,'0')}`
