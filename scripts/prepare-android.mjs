@@ -25,6 +25,11 @@ if (!rootText.includes('kotlin-gradle-plugin')) {
 
 const appGradle = path.join(android, 'app', 'build.gradle')
 let appText = readFileSync(appGradle, 'utf8')
+
+// Give every CI APK a real higher Android version so installs cannot silently reuse an older build.
+const ciBuildNumber = Number(process.env.GITHUB_RUN_NUMBER || 1)
+appText = appText.replace(/versionCode\s+\d+/, `versionCode ${ciBuildNumber}`)
+appText = appText.replace(/versionName\s+"[^"]+"/, `versionName "0.1.${ciBuildNumber}"`)
 if (!appText.includes("apply plugin: 'kotlin-android'")) {
   appText = appText.replace(
     "apply plugin: 'com.android.application'",
