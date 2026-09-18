@@ -55,3 +55,6 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;ba
 @media (prefers-reduced-motion: reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
 
 .home-screen .topbar,.home-screen .hero-copy,.home-screen .month-title-row,.day-screen .topbar,.day-screen .detail-heading{position:relative;z-index:3}
+
+.home-screen .ritual{margin-top:-52px}
+.home-screen .month-title-row{margin-top:-8px}
