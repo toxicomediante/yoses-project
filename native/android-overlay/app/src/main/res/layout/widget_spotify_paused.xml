@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/spotify_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#050706"
+    android:padding="0dp">
+
+    <ImageView
+        android:id="@+id/spotify_astro_background"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop"
+        android:src="@drawable/widget_spotify_astro_1" />
+
+        <ImageView
+            android:layout_width="96dp"
+            android:layout_height="32dp"
+            android:layout_gravity="top|end"
+            android:alpha=".32"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter"
+            android:src="@drawable/widget_spotify_pulse_00" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingLeft="12dp"
+        android:paddingTop="11dp"
+        android:paddingRight="12dp"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:id="@+id/spotify_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SPOTIFY"
+            android:textColor="#D2FF1A"
+            android:textSize="7sp"
+            android:textStyle="bold"
+            android:letterSpacing=".16" />
+
+        <TextView
+            android:id="@+id/spotify_title"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:gravity="bottom"
+            android:text="Nada sonando"
+            android:textColor="#F1F3EF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/spotify_artist"
+            android:layout_width="match_parent"
+            android:layout_height="20dp"
+            android:ellipsize="end"
+            android:gravity="center_vertical"
+            android:maxLines="1"
+            android:text="ABRE SPOTIFY"
+            android:textColor="#A6AEA7"
+            android:textSize="8sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="34dp"
+            android:layout_gravity="bottom"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/spotify_prev"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="Anterior"
+                android:padding="8dp"
+                android:src="@drawable/ic_spotify_prev" />
+
+            <ImageButton
+                android:id="@+id/spotify_play"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="Reproducir"
+                android:padding="8dp"
+                android:src="@drawable/ic_spotify_play" />
+
+            <ImageButton
+                android:id="@+id/spotify_pause"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="Pausar"
+                android:padding="8dp"
+                android:src="@drawable/ic_spotify_pause" />
+
+            <ImageButton
+                android:id="@+id/spotify_next"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="Siguiente"
+                android:padding="8dp"
+                android:src="@drawable/ic_spotify_next" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

@@ -132,6 +132,33 @@ for (let frame = 0; frame < ritualFrameCount; frame++) {
     .toFile(path.join(drawable, `widget_ritual_${String(frame).padStart(2, '0')}.png`))
 }
 
+
+const spotifyAstroFallback = path.join(root, 'src', 'assets', 'ritual-nebula.png')
+for (let i = 1; i <= 4; i++) {
+  const requested = path.join(root, 'src', 'assets', `spotify-astro-${i}.png`)
+  const source = existsSync(requested) ? requested : spotifyAstroFallback
+  const darkOverlay = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="420" height="420"><rect width="420" height="420" fill="#030504" fill-opacity=".48"/></svg>')
+  await sharp(source)
+    .resize(420, 420, { fit: 'cover', position: 'centre' })
+    .composite([{ input: darkOverlay, blend: 'over' }])
+    .png()
+    .toFile(path.join(drawable, `widget_spotify_astro_${i}.png`))
+}
+
+const spotifyPulseFrames = 12
+for (let frame = 0; frame < spotifyPulseFrames; frame++) {
+  const bars = Array.from({ length: 9 }, (_, index) => {
+    const phase = (frame / spotifyPulseFrames) * Math.PI * 2 + index * .78
+    const height = 8 + Math.round((Math.sin(phase) * .5 + .5) * 34)
+    const x = 12 + index * 18
+    return `<rect x="${x}" y="${52 - height}" width="7" height="${height}" rx="3.5" fill="#d2ff1a" opacity="${(.38 + (height / 42) * .54).toFixed(2)}"/>`
+  }).join('')
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="60" viewBox="0 0 180 60">${bars}</svg>`
+  await sharp(Buffer.from(svg))
+    .png()
+    .toFile(path.join(drawable, `widget_spotify_pulse_${String(frame).padStart(2, '0')}.png`))
+}
+
 const iconSource = path.join(root, 'public', 'app-icon.png')
 const densities = {
   'mipmap-mdpi': 48,
@@ -183,4 +210,4 @@ const adaptiveXml = '<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmln
 writeFileSync(path.join(adaptive, 'ic_launcher.xml'), adaptiveXml)
 writeFileSync(path.join(adaptive, 'ic_launcher_round.xml'), adaptiveXml)
 
-console.log('Android preparado: icono adaptativo full-bleed, puente nativo y 5 widgets YOSE.')
+console.log('Android preparado: icono adaptativo full-bleed, puente nativo y 6 widgets YOSE.')
