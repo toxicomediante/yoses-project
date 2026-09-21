@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { App as CapacitorApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
-import { clearAllEntries, deleteEntry, getAllEntries, getEntry, saveEntry, saveTextFile, syncNativeWidgets } from './storage'
+import { clearAllEntries, deleteEntry, getAllEntries, getEntry, recoverNativeStateIfNeeded, replaceAllEntries, saveEntry, saveTextFile, syncNativeWidgets } from './storage'
 import type { AlcoholCategory, AlcoholStatus, DailyEntry, TrainingExercise } from './types'
 import ritualNebula from './assets/ritual-nebula.png'
 import ritualMoon from './assets/ritual-moon.png'
@@ -542,9 +542,9 @@ function SettingsScreen({entries,onBack,onDataChanged}:{entries:DailyEntry[];onB
   async function importBackup(file:File) {
     try {
       const payload=JSON.parse(await file.text())
+      if(payload.app && payload.app!=="YOSE'S PROJECT") throw new Error('Backup de otra aplicación')
       if(!Array.isArray(payload.entries)) throw new Error('Formato no válido')
-      await clearAllEntries()
-      for(const entry of payload.entries) await saveEntry(entry as DailyEntry)
+      await replaceAllEntries(payload.entries as DailyEntry[])
       if(payload.settings) {
         const next={...DEFAULT_SETTINGS,...payload.settings}
         setSettings(next)
@@ -556,8 +556,9 @@ function SettingsScreen({entries,onBack,onDataChanged}:{entries:DailyEntry[];onB
       if(payload.strengthDrafts&&typeof payload.strengthDrafts==='object') {
         Object.entries(payload.strengthDrafts).forEach(([key,value])=>localStorage.setItem(key,JSON.stringify(value)))
       }
+      await syncNativeWidgets()
       await onDataChanged()
-      setNotice('Copia restaurada correctamente.')
+      setNotice('Copia restaurada correctamente y protegida por el sistema de backup automático.')
     } catch {
       setNotice('No se pudo importar la copia. Revisa que sea un backup válido de YOSE’S PROJECT.')
     }
@@ -658,7 +659,7 @@ function SettingsScreen({entries,onBack,onDataChanged}:{entries:DailyEntry[];onB
           <button onClick={()=>importRef.current?.click()}>IMPORTAR COPIA</button>
           <input ref={importRef} className="hidden-file-input" type="file" accept="application/json,.json" onChange={(e:any)=>{const file=e.target.files?.[0];if(file)void importBackup(file);e.target.value=''}}/>
         </div>
-        <p className="settings-note">La copia JSON incluye registros, ajustes, intervalómetro y borradores de fuerza. En Android se guarda en Descargas/YOSES PROJECT.</p>
+        <p className="settings-note">La copia manual se guarda en Descargas/YOSES PROJECT. Además, la app mantiene una copia automática visible en Descargas/YOSES PROJECT/AUTO y tres snapshots internos rotatorios incluidos en la copia de Android.</p>
         <button className="danger-data-button" onClick={deleteAllData}><TrashIcon/> BORRAR TODOS LOS DATOS</button>
       </section>
 
@@ -1076,7 +1077,13 @@ function App() {
     void syncNativeWidgets()
   }
 
-  useEffect(() => { void refresh(); saveAppSettings(loadAppSettings()) }, [])
+  useEffect(() => {
+    void (async()=>{
+      await recoverNativeStateIfNeeded()
+      saveAppSettings(loadAppSettings())
+      await refresh()
+    })()
+  }, [])
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return

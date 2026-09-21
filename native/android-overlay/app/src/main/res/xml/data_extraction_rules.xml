@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup disableIfNoEncryptionCapabilities="false">
+        <include domain="file" path="yoses_backup/" />
+        <include domain="sharedpref" path="yoses_widgets.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="file" path="yoses_backup/" />
+        <include domain="sharedpref" path="yoses_widgets.xml" />
+    </device-transfer>
+</data-extraction-rules>
