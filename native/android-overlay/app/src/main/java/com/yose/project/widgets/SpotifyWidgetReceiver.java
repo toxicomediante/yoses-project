@@ -22,18 +22,18 @@ public class SpotifyWidgetReceiver extends AppWidgetProvider {
     static final String SPOTIFY_PACKAGE = "com.spotify.music";
     private static final String ACTION_PREV = "com.yose.project.spotify.PREV";
     private static final String ACTION_PLAY = "com.yose.project.spotify.PLAY";
-    private static final String ACTION_PAUSE = "com.yose.project.spotify.PAUSE";
+    private static final String ACTION_STOP = "com.yose.project.spotify.STOP";
     private static final String ACTION_NEXT = "com.yose.project.spotify.NEXT";
 
     @Override
     public void onUpdate(Context context, AppWidgetManager manager, int[] appWidgetIds) {
-        for (int appWidgetId : appWidgetIds) updateWidget(context, manager, appWidgetId);
+        for (int appWidgetId : appWidgetIds) updateWidget(context, manager, appWidgetId, false);
     }
 
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
-        if (ACTION_PREV.equals(action) || ACTION_PLAY.equals(action) || ACTION_PAUSE.equals(action) || ACTION_NEXT.equals(action)) {
+        if (ACTION_PREV.equals(action) || ACTION_PLAY.equals(action) || ACTION_STOP.equals(action) || ACTION_NEXT.equals(action)) {
             control(context, action);
             refreshAll(context);
             return;
@@ -43,9 +43,10 @@ public class SpotifyWidgetReceiver extends AppWidgetProvider {
 
     public static void refreshAll(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
-        ComponentName component = new ComponentName(context, SpotifyWidgetReceiver.class);
-        int[] ids = manager.getAppWidgetIds(component);
-        for (int id : ids) updateWidget(context, manager, id);
+        ComponentName compact = new ComponentName(context, SpotifyWidgetReceiver.class);
+        for (int id : manager.getAppWidgetIds(compact)) updateWidget(context, manager, id, false);
+        ComponentName wide = new ComponentName(context, SpotifyWideWidgetReceiver.class);
+        for (int id : manager.getAppWidgetIds(wide)) updateWidget(context, manager, id, true);
     }
 
     static MediaController getSpotifyController(Context context) {
@@ -68,49 +69,56 @@ public class SpotifyWidgetReceiver extends AppWidgetProvider {
         return enabled.contains(component.flattenToString()) || enabled.contains(component.flattenToShortString());
     }
 
-    private static void updateWidget(Context context, AppWidgetManager manager, int appWidgetId) {
+    static void updateWidget(Context context, AppWidgetManager manager, int appWidgetId, boolean wide) {
         boolean access = hasNotificationAccess(context);
         MediaController controller = access ? getSpotifyController(context) : null;
         MediaMetadata metadata = controller != null ? controller.getMetadata() : null;
         PlaybackState state = controller != null ? controller.getPlaybackState() : null;
         boolean playing = state != null && (state.getState() == PlaybackState.STATE_PLAYING || state.getState() == PlaybackState.STATE_BUFFERING);
 
-        RemoteViews views = new RemoteViews(context.getPackageName(), playing ? R.layout.widget_spotify_playing : R.layout.widget_spotify_paused);
+        int layout = wide
+            ? (playing ? R.layout.widget_spotify_wide_playing : R.layout.widget_spotify_wide_paused)
+            : (playing ? R.layout.widget_spotify_playing : R.layout.widget_spotify_paused);
+        RemoteViews views = new RemoteViews(context.getPackageName(), layout);
 
         String title = metadata != null ? metadata.getString(MediaMetadata.METADATA_KEY_TITLE) : null;
         String artist = metadata != null ? metadata.getString(MediaMetadata.METADATA_KEY_ARTIST) : null;
         if ((artist == null || artist.isEmpty()) && metadata != null) artist = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST);
 
         if (!access) {
-            views.setTextViewText(R.id.spotify_badge, "SPOTIFY · ACCESO");
-            views.setTextViewText(R.id.spotify_title, "ACTIVA EL ACCESO");
-            views.setTextViewText(R.id.spotify_artist, "TOCA PARA CONECTAR");
+            views.setTextViewText(R.id.spotify_badge, "SPOTIFY // ACCESO");
+            views.setTextViewText(R.id.spotify_title, "CONECTA SPOTIFY");
+            views.setTextViewText(R.id.spotify_artist, "TOCA PARA DAR ACCESO");
             Intent settings = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
             settings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            PendingIntent openSettings = PendingIntent.getActivity(context, 6200 + appWidgetId, settings, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            PendingIntent openSettings = PendingIntent.getActivity(
+                context, 6200 + appWidgetId + (wide ? 1000 : 0), settings,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
             views.setOnClickPendingIntent(R.id.spotify_widget_root, openSettings);
         } else {
-            views.setTextViewText(R.id.spotify_badge, playing ? "SPOTIFY · PLAYING" : "SPOTIFY");
+            views.setTextViewText(R.id.spotify_badge, playing ? "SPOTIFY // PLAYING" : "SPOTIFY // READY");
             views.setTextViewText(R.id.spotify_title, title != null && !title.isEmpty() ? title : "Nada sonando");
             views.setTextViewText(R.id.spotify_artist, artist != null && !artist.isEmpty() ? artist : "ABRE SPOTIFY");
-            views.setOnClickPendingIntent(R.id.spotify_widget_root, spotifyLaunchIntent(context, appWidgetId));
+            views.setOnClickPendingIntent(R.id.spotify_widget_root, spotifyLaunchIntent(context, appWidgetId, wide));
         }
 
-        int[] astros = {
-            R.drawable.widget_spotify_astro_1,
-            R.drawable.widget_spotify_astro_2,
-            R.drawable.widget_spotify_astro_3,
-            R.drawable.widget_spotify_astro_4
-        };
+        int[] astros = wide
+            ? new int[] {
+                R.drawable.widget_spotify_wide_astro_1, R.drawable.widget_spotify_wide_astro_2,
+                R.drawable.widget_spotify_wide_astro_3, R.drawable.widget_spotify_wide_astro_4
+            }
+            : new int[] {
+                R.drawable.widget_spotify_compact_astro_1, R.drawable.widget_spotify_compact_astro_2,
+                R.drawable.widget_spotify_compact_astro_3, R.drawable.widget_spotify_compact_astro_4
+            };
         String seed = (title == null ? "" : title) + "|" + (artist == null ? "" : artist);
-        int astro = astros[Math.floorMod(seed.hashCode(), astros.length)];
-        views.setImageViewResource(R.id.spotify_astro_background, astro);
+        views.setImageViewResource(R.id.spotify_astro_background, astros[Math.floorMod(seed.hashCode(), astros.length)]);
 
         views.setOnClickPendingIntent(R.id.spotify_prev, controlIntent(context, ACTION_PREV, 1));
         views.setOnClickPendingIntent(R.id.spotify_play, controlIntent(context, ACTION_PLAY, 2));
-        views.setOnClickPendingIntent(R.id.spotify_pause, controlIntent(context, ACTION_PAUSE, 3));
+        views.setOnClickPendingIntent(R.id.spotify_stop, controlIntent(context, ACTION_STOP, 3));
         views.setOnClickPendingIntent(R.id.spotify_next, controlIntent(context, ACTION_NEXT, 4));
-
         manager.updateAppWidget(appWidgetId, views);
     }
 
@@ -120,11 +128,14 @@ public class SpotifyWidgetReceiver extends AppWidgetProvider {
         return PendingIntent.getBroadcast(context, 6300 + code, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
-    private static PendingIntent spotifyLaunchIntent(Context context, int appWidgetId) {
+    private static PendingIntent spotifyLaunchIntent(Context context, int appWidgetId, boolean wide) {
         Intent launch = context.getPackageManager().getLaunchIntentForPackage(SPOTIFY_PACKAGE);
         if (launch == null) launch = new Intent(context, MainActivity.class);
         launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        return PendingIntent.getActivity(context, 6400 + appWidgetId, launch, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        return PendingIntent.getActivity(
+            context, 6400 + appWidgetId + (wide ? 1000 : 0), launch,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
     }
 
     private static void control(Context context, String action) {
@@ -133,7 +144,7 @@ public class SpotifyWidgetReceiver extends AppWidgetProvider {
         MediaController.TransportControls controls = controller.getTransportControls();
         if (ACTION_PREV.equals(action)) controls.skipToPrevious();
         else if (ACTION_PLAY.equals(action)) controls.play();
-        else if (ACTION_PAUSE.equals(action)) controls.pause();
+        else if (ACTION_STOP.equals(action)) controls.pause();
         else if (ACTION_NEXT.equals(action)) controls.skipToNext();
     }
 }

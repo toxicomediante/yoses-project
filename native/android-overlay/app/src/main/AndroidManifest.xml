@@ -53,9 +53,14 @@
         </receiver>
 
 
-        <receiver android:name=".widgets.SpotifyWidgetReceiver" android:exported="false" android:label="YOSE · Spotify">
+        <receiver android:name=".widgets.SpotifyWidgetReceiver" android:exported="false" android:label="YOSE · Spotify 2×2">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_spotify_info" />
+        </receiver>
+
+        <receiver android:name=".widgets.SpotifyWideWidgetReceiver" android:exported="false" android:label="YOSE · Spotify 4×2">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_spotify_wide_info" />
         </receiver>
 
         <service

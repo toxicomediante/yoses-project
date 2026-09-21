@@ -11,13 +11,13 @@
         android:layout_height="match_parent"
         android:contentDescription="@null"
         android:scaleType="centerCrop"
-        android:src="@drawable/widget_spotify_compact_astro_1" />
+        android:src="@drawable/widget_spotify_wide_astro_1" />
 
     <ViewFlipper
-        android:layout_width="144dp"
-        android:layout_height="144dp"
-        android:layout_gravity="center_horizontal|top"
-        android:layout_marginTop="8dp"
+        android:layout_width="198dp"
+        android:layout_height="198dp"
+        android:layout_gravity="center_vertical|end"
+        android:layout_marginRight="12dp"
         android:autoStart="true"
         android:flipInterval="80"
         android:animateFirstView="false">
@@ -167,14 +167,22 @@
             android:src="@drawable/widget_spotify_pulse_23" />
     </ViewFlipper>
 
+    <TextView
+        android:layout_width="2dp"
+        android:layout_height="72dp"
+        android:layout_gravity="center_vertical|left"
+        android:layout_marginLeft="18dp"
+        android:background="#88D2FF1A"
+        android:text="" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:paddingLeft="12dp"
-        android:paddingTop="11dp"
-        android:paddingRight="12dp"
-        android:paddingBottom="9dp">
+        android:paddingLeft="30dp"
+        android:paddingTop="16dp"
+        android:paddingRight="210dp"
+        android:paddingBottom="13dp">
 
         <TextView
             android:id="@+id/spotify_badge"
@@ -182,10 +190,10 @@
             android:layout_height="wrap_content"
             android:background="@drawable/widget_spotify_chip"
             android:fontFamily="sans-serif-medium"
-            android:letterSpacing=".13"
+            android:letterSpacing=".15"
             android:text="SPOTIFY // PLAYING"
             android:textColor="#D2FF1A"
-            android:textSize="7sp"
+            android:textSize="8sp"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -206,69 +214,77 @@
             android:shadowRadius="3"
             android:text="Nada sonando"
             android:textColor="#F4F6F1"
-            android:textSize="13sp"
+            android:textSize="19sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/spotify_artist"
             android:layout_width="match_parent"
-            android:layout_height="18dp"
+            android:layout_height="23dp"
             android:ellipsize="end"
             android:fontFamily="sans-serif"
             android:gravity="center_vertical"
             android:maxLines="1"
-            android:shadowColor="#CC000000"
-            android:shadowDx="0"
-            android:shadowDy="1"
-            android:shadowRadius="2"
             android:text="ABRE SPOTIFY"
-            android:textColor="#C2C8C1"
-            android:textSize="8sp" />
+            android:textColor="#B9C0B8"
+            android:textSize="10sp" />
 
         <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="30dp"
+            android:layout_height="38dp"
             android:gravity="center"
             android:orientation="horizontal">
 
             <ImageButton
                 android:id="@+id/spotify_prev"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
                 android:layout_marginRight="5dp"
                 android:background="@drawable/widget_spotify_button"
                 android:contentDescription="Anterior"
-                android:padding="7dp"
+                android:padding="9dp"
                 android:src="@drawable/ic_spotify_prev" />
 
             <ImageButton
                 android:id="@+id/spotify_play"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
                 android:layout_marginRight="5dp"
                 android:background="@drawable/widget_spotify_button_accent"
                 android:contentDescription="Reproducir"
-                android:padding="7dp"
+                android:padding="9dp"
                 android:src="@drawable/ic_spotify_play" />
 
             <ImageButton
                 android:id="@+id/spotify_stop"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
                 android:layout_marginRight="5dp"
                 android:background="@drawable/widget_spotify_button"
                 android:contentDescription="Parar"
-                android:padding="7dp"
+                android:padding="9dp"
                 android:src="@drawable/ic_spotify_stop" />
 
             <ImageButton
                 android:id="@+id/spotify_next"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
                 android:background="@drawable/widget_spotify_button"
                 android:contentDescription="Siguiente"
-                android:padding="7dp"
+                android:padding="9dp"
                 android:src="@drawable/ic_spotify_next" />
         </LinearLayout>
     </LinearLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginRight="18dp"
+        android:layout_marginBottom="12dp"
+        android:fontFamily="sans-serif-medium"
+        android:letterSpacing=".16"
+        android:text="YOSE'S PROJECT // MEDIA"
+        android:textColor="#66D2FF1A"
+        android:textSize="6sp" />
 </FrameLayout>

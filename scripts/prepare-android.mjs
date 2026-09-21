@@ -133,30 +133,156 @@ for (let frame = 0; frame < ritualFrameCount; frame++) {
 }
 
 
-const spotifyAstroFallback = path.join(root, 'src', 'assets', 'ritual-nebula.png')
-for (let i = 1; i <= 4; i++) {
-  const requested = path.join(root, 'src', 'assets', `spotify-astro-${i}.webp`)
-  const source = existsSync(requested) ? requested : spotifyAstroFallback
-  const darkOverlay = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="420" height="420"><rect width="420" height="420" fill="#030504" fill-opacity=".48"/></svg>')
-  await sharp(source)
-    .resize(420, 420, { fit: 'cover', position: 'centre' })
-    .composite([{ input: darkOverlay, blend: 'over' }])
-    .png()
-    .toFile(path.join(drawable, `widget_spotify_astro_${i}.png`))
+
+const spotifyAstroSources = Array.from({ length: 4 }, (_, index) =>
+  path.join(root, 'src', 'assets', \`spotify-astro-\${index + 1}.png\`)
+)
+for (const source of spotifyAstroSources) {
+  if (!existsSync(source)) throw new Error(\`Falta el asset obligatorio de Spotify: \${path.basename(source)}\`)
 }
 
-const spotifyPulseFrames = 12
-for (let frame = 0; frame < spotifyPulseFrames; frame++) {
-  const bars = Array.from({ length: 9 }, (_, index) => {
-    const phase = (frame / spotifyPulseFrames) * Math.PI * 2 + index * .78
-    const height = 8 + Math.round((Math.sin(phase) * .5 + .5) * 34)
-    const x = 12 + index * 18
-    return `<rect x="${x}" y="${52 - height}" width="7" height="${height}" rx="3.5" fill="#d2ff1a" opacity="${(.38 + (height / 42) * .54).toFixed(2)}"/>`
-  }).join('')
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="60" viewBox="0 0 180 60">${bars}</svg>`
-  await sharp(Buffer.from(svg))
+const spotifyShellXml = \`<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#F2050706"/>
+    <stroke android:width="1dp" android:color="#443A4738"/>
+    <corners android:radius="22dp"/>
+</shape>\`
+const spotifyChipXml = \`<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#55050706"/>
+    <stroke android:width="1dp" android:color="#88D2FF1A"/>
+    <corners android:radius="8dp"/>
+    <padding android:left="6dp" android:top="3dp" android:right="6dp" android:bottom="3dp"/>
+</shape>\`
+const spotifyButtonXml = \`<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#66050706"/>
+    <stroke android:width="1dp" android:color="#55616A61"/>
+    <corners android:radius="18dp"/>
+</shape>\`
+const spotifyButtonAccentXml = \`<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#35D2FF1A"/>
+    <stroke android:width="1dp" android:color="#A8D2FF1A"/>
+    <corners android:radius="18dp"/>
+</shape>\`
+const spotifyStopIconXml = \`<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#F1F3EF" android:pathData="M7,7h10v10H7z"/>
+</vector>\`
+writeFileSync(path.join(drawable, 'widget_spotify_shell.xml'), spotifyShellXml)
+writeFileSync(path.join(drawable, 'widget_spotify_chip.xml'), spotifyChipXml)
+writeFileSync(path.join(drawable, 'widget_spotify_button.xml'), spotifyButtonXml)
+writeFileSync(path.join(drawable, 'widget_spotify_button_accent.xml'), spotifyButtonAccentXml)
+writeFileSync(path.join(drawable, 'ic_spotify_stop.xml'), spotifyStopIconXml)
+
+function roundedMask(width, height, radius) {
+  return Buffer.from(\`<svg xmlns="http://www.w3.org/2000/svg" width="\${width}" height="\${height}"><rect width="\${width}" height="\${height}" rx="\${radius}" fill="#fff"/></svg>\`)
+}
+
+function compactShade() {
+  return Buffer.from(\`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="420">
+    <defs>
+      <linearGradient id="bottom" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#050706" stop-opacity=".03"/>
+        <stop offset=".48" stop-color="#050706" stop-opacity=".15"/>
+        <stop offset=".70" stop-color="#050706" stop-opacity=".66"/>
+        <stop offset="1" stop-color="#050706" stop-opacity=".98"/>
+      </linearGradient>
+      <radialGradient id="edge">
+        <stop offset=".58" stop-color="#000" stop-opacity="0"/>
+        <stop offset="1" stop-color="#000" stop-opacity=".48"/>
+      </radialGradient>
+    </defs>
+    <rect width="420" height="420" fill="url(#bottom)"/>
+    <rect width="420" height="420" fill="url(#edge)"/>
+    <rect x="1" y="1" width="418" height="418" rx="34" fill="none" stroke="#d2ff1a" stroke-opacity=".24" stroke-width="2"/>
+    <path d="M24 42h72M24 42v38M396 340v38M324 378h72" stroke="#d2ff1a" stroke-opacity=".38" stroke-width="2"/>
+  </svg>\`)
+}
+
+function wideShade() {
+  return Buffer.from(\`<svg xmlns="http://www.w3.org/2000/svg" width="840" height="420">
+    <defs>
+      <linearGradient id="side" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#050706" stop-opacity=".995"/>
+        <stop offset=".42" stop-color="#050706" stop-opacity=".96"/>
+        <stop offset=".65" stop-color="#050706" stop-opacity=".46"/>
+        <stop offset="1" stop-color="#050706" stop-opacity=".06"/>
+      </linearGradient>
+      <linearGradient id="bottom" x1="0" y1="0" x2="0" y2="1">
+        <stop offset=".55" stop-color="#000" stop-opacity="0"/>
+        <stop offset="1" stop-color="#000" stop-opacity=".48"/>
+      </linearGradient>
+    </defs>
+    <rect width="840" height="420" fill="url(#side)"/>
+    <rect width="840" height="420" fill="url(#bottom)"/>
+    <rect x="1" y="1" width="838" height="418" rx="34" fill="none" stroke="#d2ff1a" stroke-opacity=".22" stroke-width="2"/>
+    <path d="M34 42h104M34 42v42M806 336v42M702 378h104" stroke="#d2ff1a" stroke-opacity=".36" stroke-width="2"/>
+    <circle cx="648" cy="210" r="142" fill="none" stroke="#d2ff1a" stroke-opacity=".08" stroke-width="1.5"/>
+    <circle cx="648" cy="210" r="160" fill="none" stroke="#cbd2c9" stroke-opacity=".06" stroke-width="1"/>
+  </svg>\`)
+}
+
+for (let i = 1; i <= 4; i++) {
+  const source = spotifyAstroSources[i - 1]
+  const compactAstro = await sharp(source)
+    .resize(392, 392, { fit: 'contain', position: 'centre' })
+    .ensureAlpha()
     .png()
-    .toFile(path.join(drawable, `widget_spotify_pulse_${String(frame).padStart(2, '0')}.png`))
+    .toBuffer()
+
+  await sharp({ create: { width: 420, height: 420, channels: 4, background: '#050706ff' } })
+    .composite([
+      { input: compactAstro, left: 14, top: 2 },
+      { input: compactShade(), left: 0, top: 0 },
+      { input: roundedMask(420, 420, 34), blend: 'dest-in' }
+    ])
+    .png()
+    .toFile(path.join(drawable, \`widget_spotify_compact_astro_\${i}.png\`))
+
+  const wideAstro = await sharp(source)
+    .resize(404, 404, { fit: 'contain', position: 'centre' })
+    .ensureAlpha()
+    .png()
+    .toBuffer()
+
+  await sharp({ create: { width: 840, height: 420, channels: 4, background: '#050706ff' } })
+    .composite([
+      { input: wideAstro, left: 438, top: 8 },
+      { input: wideShade(), left: 0, top: 0 },
+      { input: roundedMask(840, 420, 34), blend: 'dest-in' }
+    ])
+    .png()
+    .toFile(path.join(drawable, \`widget_spotify_wide_astro_\${i}.png\`))
+}
+
+const spotifyPulseFrames = 24
+for (let frame = 0; frame < spotifyPulseFrames; frame++) {
+  const bars = Array.from({ length: 24 }, (_, index) => {
+    const angle = index * 15
+    const phase = (frame / spotifyPulseFrames) * Math.PI * 2 + index * .72
+    const energy = Math.sin(phase) * .5 + .5
+    const inner = 84
+    const outer = inner + 7 + energy * 18
+    const opacity = (.18 + energy * .62).toFixed(2)
+    return \`<line x1="120" y1="\${120 - inner}" x2="120" y2="\${120 - outer}" transform="rotate(\${angle} 120 120)" stroke="#d2ff1a" stroke-width="4" stroke-linecap="round" opacity="\${opacity}"/>\`
+  }).join('')
+  const orbit = (frame / spotifyPulseFrames) * 360
+  const svg = \`<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+    <circle cx="120" cy="120" r="78" fill="none" stroke="#d2ff1a" stroke-width="1.3" opacity=".18"/>
+    <circle cx="120" cy="120" r="97" fill="none" stroke="#cbd2c9" stroke-width="1" opacity=".10"/>
+    \${bars}
+    <g transform="rotate(\${orbit} 120 120)">
+      <circle cx="120" cy="19" r="4" fill="#d2ff1a" opacity=".90"/>
+      <circle cx="120" cy="221" r="2.5" fill="#cbd2c9" opacity=".60"/>
+    </g>
+  </svg>\`
+  await sharp(Buffer.from(svg)).png().toFile(
+    path.join(drawable, \`widget_spotify_pulse_\${String(frame).padStart(2, '0')}.png\`)
+  )
 }
 
 const iconSource = path.join(root, 'public', 'app-icon.png')
@@ -210,4 +336,4 @@ const adaptiveXml = '<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmln
 writeFileSync(path.join(adaptive, 'ic_launcher.xml'), adaptiveXml)
 writeFileSync(path.join(adaptive, 'ic_launcher_round.xml'), adaptiveXml)
 
-console.log('Android preparado: icono adaptativo full-bleed, puente nativo y 6 widgets YOSE.')
+console.log('Android preparado: icono adaptativo full-bleed, puente nativo y 7 widgets YOSE.')
