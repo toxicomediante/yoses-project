@@ -91,7 +91,7 @@ for (let i = 3; i < moonRaw.data.length; i += moonRaw.info.channels) {
 }
 await sharp(moonRaw.data, { raw: moonRaw.info }).png().toFile(path.join(drawable, 'widget_moon.png'))
 
-const ritualFrameCount = 18
+const ritualFrameCount = 36
 const ritualMoonBase64 = readFileSync(path.join(root, 'src', 'assets', 'ritual-moon.png')).toString('base64')
 
 function ritualDash(progress, delay) {
@@ -100,11 +100,13 @@ function ritualDash(progress, delay) {
 }
 
 for (let frame = 0; frame < ritualFrameCount; frame++) {
-  const progress = frame / (ritualFrameCount - 1)
-  const angle = Math.round(progress * 360)
-  const offsets = [0, .035, .065, .095, .125, .085, .11].map(delay => ritualDash(progress, delay))
-  const coreOpacity = Math.max(0, Math.min(.82, (progress - .28) * 3))
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 360 150">
+  const t = frame / (ritualFrameCount - 1)
+  const progress = Math.min(1, t / 0.82)
+  const eased = 1 - Math.pow(1 - progress, 3)
+  const angle = Math.round(t * 360)
+  const offsets = [0, .035, .065, .095, .125, .085, .11].map(delay => ritualDash(eased, delay))
+  const coreOpacity = Math.max(0, Math.min(.82, (eased - .28) * 3))
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="420" height="420" viewBox="110 5 140 140">
     <defs>
       <filter id="moonGlow" x="-40%" y="-40%" width="180%" height="180%">
         <feGaussianBlur stdDeviation="2.6" result="blur"/>
