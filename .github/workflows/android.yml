@@ -72,6 +72,11 @@ jobs:
           fi
 
       - name: Build debug APK for verification
+        env:
+          YOSE_SIGNING_STORE_FILE: ${{ runner.temp }}/yoses-project-release.jks
+          YOSE_SIGNING_STORE_PASSWORD: ${{ secrets.YOSE_ANDROID_STORE_PASSWORD }}
+          YOSE_SIGNING_KEY_ALIAS: ${{ secrets.YOSE_ANDROID_KEY_ALIAS }}
+          YOSE_SIGNING_KEY_PASSWORD: ${{ secrets.YOSE_ANDROID_KEY_PASSWORD }}
         run: |
           cd android
           chmod +x gradlew

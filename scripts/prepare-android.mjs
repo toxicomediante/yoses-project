@@ -69,7 +69,7 @@ if (process.env.YOSE_SIGNING_ENABLED === 'true') {
     )
   }
   appText = appText.replace(
-    /(release\s*\{\s*\n)(?!\s*signingConfig)/,
+    /(buildTypes\s*\{\s*\n\s*release\s*\{\s*\n)(?!\s*signingConfig)/,
     '$1            signingConfig signingConfigs.release\n'
   )
 }
