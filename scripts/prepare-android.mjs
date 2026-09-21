@@ -65,6 +65,45 @@ for (let i = 3; i < moonRaw.data.length; i += moonRaw.info.channels) {
 }
 await sharp(moonRaw.data, { raw: moonRaw.info }).png().toFile(path.join(drawable, 'widget_moon.png'))
 
+const ritualFrameCount = 18
+const ritualMoonBase64 = readFileSync(path.join(root, 'src', 'assets', 'ritual-moon.png')).toString('base64')
+
+function ritualDash(progress, delay) {
+  const local = Math.max(0, Math.min(1, (progress - delay) / 0.24))
+  return Math.round(300 * (1 - local))
+}
+
+for (let frame = 0; frame < ritualFrameCount; frame++) {
+  const progress = frame / (ritualFrameCount - 1)
+  const angle = Math.round(progress * 360)
+  const offsets = [0, .035, .065, .095, .125, .085, .11].map(delay => ritualDash(progress, delay))
+  const coreOpacity = Math.max(0, Math.min(.82, (progress - .28) * 3))
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="300" viewBox="0 0 360 150">
+    <defs>
+      <filter id="moonGlow" x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur stdDeviation="2.6" result="blur"/>
+        <feFlood flood-color="#beff3c" flood-opacity=".13" result="glow"/>
+        <feComposite in="glow" in2="blur" operator="in" result="softGlow"/>
+        <feMerge><feMergeNode in="softGlow"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <image href="data:image/png;base64,${ritualMoonBase64}" x="134" y="31" width="92" height="92" opacity=".96" filter="url(#moonGlow)" transform="rotate(${angle} 180 77)"/>
+    <g fill="none" stroke="#cbd2c9" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M180 4v138" stroke-dasharray="300" stroke-dashoffset="${offsets[0]}"/>
+      <path d="M90 86h180" stroke-dasharray="300" stroke-dashoffset="${offsets[1]}"/>
+      <path d="M180 24 145 78l35 46 35-46Z" stroke-dasharray="300" stroke-dashoffset="${offsets[2]}"/>
+      <circle cx="180" cy="77" r="46" stroke-dasharray="300" stroke-dashoffset="${offsets[3]}"/>
+      <circle cx="180" cy="77" r="30" stroke-dasharray="300" stroke-dashoffset="${offsets[4]}"/>
+      <path d="M144 20a50 50 0 0 0 72 0 43 43 0 0 1-72 0Z" stroke-dasharray="300" stroke-dashoffset="${offsets[5]}"/>
+      <path d="M155 20c8 8 17 12 25 12s17-4 25-12" stroke-dasharray="300" stroke-dashoffset="${offsets[6]}"/>
+    </g>
+    <circle cx="180" cy="77" r="13" fill="none" stroke="#d2ff1a" stroke-width=".8" opacity="${coreOpacity.toFixed(2)}"/>
+  </svg>`
+  await sharp(Buffer.from(svg))
+    .png()
+    .toFile(path.join(drawable, `widget_ritual_${String(frame).padStart(2, '0')}.png`))
+}
+
 const iconSource = path.join(root, 'public', 'app-icon.png')
 const densities = {
   'mipmap-mdpi': 48,
@@ -116,4 +155,4 @@ const adaptiveXml = '<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmln
 writeFileSync(path.join(adaptive, 'ic_launcher.xml'), adaptiveXml)
 writeFileSync(path.join(adaptive, 'ic_launcher_round.xml'), adaptiveXml)
 
-console.log('Android preparado: icono adaptativo full-bleed, puente nativo y 4 widgets YOSE.')
+console.log('Android preparado: icono adaptativo full-bleed, puente nativo y 5 widgets YOSE.')

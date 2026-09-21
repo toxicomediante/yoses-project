@@ -1,6 +1,11 @@
 package com.yose.project.widgets
 
+import android.app.PendingIntent
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProvider
 import android.content.Context
+import android.content.Intent
+import android.widget.RemoteViews
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -357,4 +362,21 @@ class TimerWidget : GlanceAppWidget() {
 
 class TimerWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = TimerWidget()
+}
+
+
+class RitualMoonWidgetReceiver : AppWidgetProvider() {
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        val openApp = PendingIntent.getActivity(
+            context,
+            5042,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        appWidgetIds.forEach { appWidgetId ->
+            val views = RemoteViews(context.packageName, R.layout.widget_ritual_moon)
+            views.setOnClickPendingIntent(R.id.ritual_widget_root, openApp)
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
+    }
 }

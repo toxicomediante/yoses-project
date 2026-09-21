@@ -321,6 +321,19 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;ba
 .strength-history-metrics small{font-size:5px;letter-spacing:1px;color:#7e887f}
 .strength-history-metrics b{font-size:14px;color:#e9ede7;margin-top:5px}
 .volume-caption{margin:13px 0 2px;font-size:6px;letter-spacing:1.3px;color:#7f8980;text-align:center}
+
+.data-export-card{padding-bottom:12px}
+.data-export-note{margin:-2px 0 10px;font-size:7px;line-height:1.45;letter-spacing:.45px;color:#7f8980}
+.data-export-list{display:flex;flex-direction:column;gap:7px}
+.data-export-item{display:grid;grid-template-columns:minmax(0,1fr) 94px;gap:10px;align-items:center;border:1px solid rgba(255,255,255,.075);border-radius:11px;background:#070908;padding:10px}
+.data-export-item>div{display:flex;min-width:0;flex-direction:column;gap:4px}
+.data-export-item b{font-size:7px;letter-spacing:1.15px;color:#dfe5dc}
+.data-export-item small{font-size:6px;line-height:1.45;letter-spacing:.35px;color:#7f8980}
+.data-export-item button{min-height:38px;border:1px solid rgba(207,255,26,.34);border-radius:9px;background:rgba(207,255,26,.045);color:var(--acid);font-size:6px;font-weight:850;letter-spacing:.85px;cursor:pointer;padding:7px}
+@media(max-width:380px){
+  .data-export-item{grid-template-columns:1fr}
+  .data-export-item button{width:100%}
+}
 @media(max-width:380px){
   .strength-history-metrics{grid-template-columns:1fr 1fr}
   .strength-history-metrics span:last-child{grid-column:1/-1}

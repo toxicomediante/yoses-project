@@ -17,6 +17,30 @@ function localIsoDate(date: Date) {
   return `${y}-${m}-${d}`
 }
 
+function csvCell(value: unknown) {
+  if (value === null || value === undefined) return '""'
+  return `"${String(value).replace(/"/g,'""')}"`
+}
+
+function downloadCsv(filename:string, headers:string[], rows:Array<Array<unknown>>) {
+  const csv='\uFEFF'+[headers,...rows].map(row=>row.map(csvCell).join(';')).join('\r\n')
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'})
+  const url=URL.createObjectURL(blob)
+  const a=document.createElement('a')
+  a.href=url
+  a.download=filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.setTimeout(()=>URL.revokeObjectURL(url),1000)
+}
+
+function alcoholCsvValue(status:AlcoholStatus) {
+  if(status==='none') return 'SIN_ALCOHOL'
+  if(status==='alcohol') return 'CON_ALCOHOL'
+  return ''
+}
+
 function daysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate()
 }
@@ -709,6 +733,102 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
   const weightDelta=latestWeight!==undefined&&firstWeight!==undefined ? latestWeight-firstWeight : undefined
   const maxHabit=Math.max(1,noAlcohol,alcohol,training)
 
+  function exportDailyCsv() {
+    downloadCsv(
+      `yoses-project-diario-completo-${localIsoDate(new Date())}.csv`,
+      ['fecha','peso_kg','energia','animo','sueno','alcohol','entreno','minutos_entreno','tipo_entrenamiento','notas'],
+      sorted.map(entry=>[
+        entry.date,
+        entry.weightKg ?? '',
+        entry.energy ?? '',
+        entry.mood ?? '',
+        entry.sleep ?? '',
+        alcoholCsvValue(entry.alcohol),
+        entry.trained ? 1 : 0,
+        entry.trainingMinutes ?? '',
+        entry.trainingType ?? '',
+        entry.notes ?? ''
+      ])
+    )
+  }
+
+  function exportWeightCsv() {
+    downloadCsv(
+      `yoses-project-peso-${localIsoDate(new Date())}.csv`,
+      ['fecha','peso_kg'],
+      sorted.filter(entry=>typeof entry.weightKg==='number').map(entry=>[entry.date,entry.weightKg ?? ''])
+    )
+  }
+
+  function exportWellnessCsv() {
+    downloadCsv(
+      `yoses-project-estado-del-dia-${localIsoDate(new Date())}.csv`,
+      ['fecha','energia','animo','sueno','notas'],
+      sorted
+        .filter(entry=>entry.energy!==undefined || entry.mood!==undefined || entry.sleep!==undefined || Boolean(entry.notes))
+        .map(entry=>[entry.date,entry.energy ?? '',entry.mood ?? '',entry.sleep ?? '',entry.notes ?? ''])
+    )
+  }
+
+  function exportHabitsCsv() {
+    const categoryValue=(entry:DailyEntry,category:AlcoholCategory)=>{
+      if(entry.alcohol==='none') return 0
+      if(entry.alcohol!=='alcohol' || !entry.alcoholCategories) return ''
+      return entry.alcoholCategories.includes(category) ? 1 : 0
+    }
+    downloadCsv(
+      `yoses-project-habitos-${localIsoDate(new Date())}.csv`,
+      ['fecha','alcohol','cerveza','vino','destilados','cantidad_cerveza','cantidad_vino','cantidad_destilados','notas_alcohol','entreno'],
+      sorted.map(entry=>[
+        entry.date,
+        alcoholCsvValue(entry.alcohol),
+        categoryValue(entry,'beer'),
+        categoryValue(entry,'wine'),
+        categoryValue(entry,'spirits'),
+        entry.alcoholAmounts?.beer ?? '',
+        entry.alcoholAmounts?.wine ?? '',
+        entry.alcoholAmounts?.spirits ?? '',
+        entry.alcoholNotes ?? '',
+        entry.trained ? 1 : 0
+      ])
+    )
+  }
+
+  function exportTrainingCsv() {
+    const rows:Array<Array<unknown>>=[]
+    sorted.forEach(entry=>{
+      const exercises=entry.exercises ?? []
+      if(!entry.trained && exercises.length===0) return
+      if(exercises.length===0) {
+        rows.push([entry.date,entry.trainingType ?? '',entry.trainingMinutes ?? '','','','','','',''])
+        return
+      }
+      exercises.forEach(exercise=>{
+        const sets=exercise.sets?.length ? exercise.sets : [{}]
+        sets.forEach((set,index)=>{
+          const load=typeof exercise.loadKg==='number' ? exercise.loadKg : null
+          const reps=typeof set.reps==='number' ? set.reps : null
+          rows.push([
+            entry.date,
+            entry.trainingType ?? '',
+            entry.trainingMinutes ?? '',
+            exercise.muscleGroup,
+            exercise.name,
+            load ?? '',
+            index+1,
+            reps ?? '',
+            load!==null && reps!==null ? load*reps : ''
+          ])
+        })
+      })
+    })
+    downloadCsv(
+      `yoses-project-entrenamientos-${localIsoDate(new Date())}.csv`,
+      ['fecha','tipo_entrenamiento','duracion_min','grupo_muscular','ejercicio','carga_kg','numero_serie','repeticiones','volumen_serie'],
+      rows
+    )
+  }
+
   return <main className="app-shell">
     <section className="phone-surface history-screen">
       <div className="header-nebula history-nebula" style={{backgroundImage:`url(${ritualNebula})`}} aria-hidden="true" />
@@ -720,7 +840,7 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
 
       <div className="detail-ritual-wrap history-ritual-wrap"><RitualHeader compact/></div>
       <div className="detail-heading history-heading">
-        <h1>HISTÓRICO</h1>
+        <h1>DATA ANALYSIS</h1>
         <p>EVOLUCIÓN · PATRONES · PROGRESO REAL</p>
       </div>
 
@@ -771,6 +891,21 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
             <HistoryLineChart series={[{label:'VOLUMEN',points:strengthData.map(d=>({date:d.date,value:d.volume}))}]} emptyText="Aún no hay datos de volumen."/>
           </> : <div className="history-empty">No hay sesiones registradas para este ejercicio.</div>}
         </> : <div className="history-empty">Vuelca entrenamientos de fuerza para empezar a ver progresión.</div>}
+      </section>
+
+
+      <section className="entry-card history-card data-export-card">
+        <div className="history-card-head">
+          <div><span>EXPORTAR DATOS</span><strong>CSV PARA ANÁLISIS EXTERNO</strong></div>
+        </div>
+        <p className="data-export-note">Siempre exporta el histórico completo, independientemente del rango visible.</p>
+        <div className="data-export-list">
+          <div className="data-export-item"><div><b>DIARIO COMPLETO</b><small>Una fila por fecha con peso, estado, alcohol, entrenamiento y notas.</small></div><button onClick={exportDailyCsv}>EXPORTAR CSV</button></div>
+          <div className="data-export-item"><div><b>PESO</b><small>Fecha y peso registrado, listo para estudiar la evolución corporal.</small></div><button onClick={exportWeightCsv}>EXPORTAR CSV</button></div>
+          <div className="data-export-item"><div><b>ESTADO DEL DÍA</b><small>Energía, ánimo, sueño y notas en cada fecha registrada.</small></div><button onClick={exportWellnessCsv}>EXPORTAR CSV</button></div>
+          <div className="data-export-item"><div><b>HÁBITOS</b><small>Alcohol, categorías y cantidades registradas, junto con el indicador de entreno.</small></div><button onClick={exportHabitsCsv}>EXPORTAR CSV</button></div>
+          <div className="data-export-item"><div><b>ENTRENAMIENTOS</b><small>Una fila por serie con ejercicio, carga, repeticiones y volumen calculado.</small></div><button onClick={exportTrainingCsv}>EXPORTAR CSV</button></div>
+        </div>
       </section>
 
       <button className="secondary-button" onClick={onBack}>VOLVER AL CALENDARIO</button>
@@ -1076,7 +1211,7 @@ function App() {
       </section>
 
       <button className="primary-button" onClick={()=>setSelectedDate(localIsoDate(today))}>REGISTRAR HOY <span>→</span></button>
-      <button className="secondary-button" onClick={()=>setScreen('history')}>VER HISTÓRICO</button>
+      <button className="secondary-button" onClick={()=>setScreen('history')}>DATA ANALYSIS</button>
       <div className="home-swipe-nav"><button className="swipe-hint" onClick={()=>setScreen('strength')}>DATOS DE ENTRENAMIENTO →</button><button className="swipe-hint" onClick={()=>setScreen('timer')}>← INTERVALÓMETRO</button></div>
       <footer>DISCIPLINA HOY. UN MAÑANA DIFERENTE.</footer>
 
