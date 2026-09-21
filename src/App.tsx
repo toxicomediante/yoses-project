@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { App as CapacitorApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
-import { clearAllEntries, deleteEntry, getAllEntries, getEntry, recoverNativeStateIfNeeded, replaceAllEntries, saveEntry, saveTextFile, syncNativeWidgets } from './storage'
+import { clearAllEntries, deleteEntry, getAllEntries, getEntry, recoverNativeStateIfNeeded, replaceAllEntries, saveEntry, saveTextFile, syncNativeWidgets, verifyBackupProtection } from './storage'
 import type { AlcoholCategory, AlcoholStatus, DailyEntry, TrainingExercise } from './types'
 import ritualNebula from './assets/ritual-nebula.png'
 import ritualMoon from './assets/ritual-moon.png'
@@ -15,6 +15,10 @@ function localIsoDate(date: Date) {
   const m = `${date.getMonth() + 1}`.padStart(2, '0')
   const d = `${date.getDate()}`.padStart(2, '0')
   return `${y}-${m}-${d}`
+}
+
+function localFileTimestamp(date=new Date()) {
+  return `${localIsoDate(date)}-${String(date.getHours()).padStart(2,'0')}${String(date.getMinutes()).padStart(2,'0')}${String(date.getSeconds()).padStart(2,'0')}`
 }
 
 function csvCell(value: unknown) {
@@ -529,7 +533,7 @@ function SettingsScreen({entries,onBack,onDataChanged}:{entries:DailyEntry[];onB
       intervalTimer:timer,
       strengthDrafts:collectStrengthDrafts()
     }
-    const filename=`yoses-project-backup-${localIsoDate(new Date())}.json`
+    const filename=`yoses-project-backup-${localFileTimestamp()}.json`
     try {
       const path=await saveTextFile(filename,JSON.stringify(payload,null,2),'application/json')
       setNotice(`Copia guardada en ${path}.`)
@@ -544,6 +548,25 @@ function SettingsScreen({entries,onBack,onDataChanged}:{entries:DailyEntry[];onB
       const payload=JSON.parse(await file.text())
       if(payload.app && payload.app!=="YOSE'S PROJECT") throw new Error('Backup de otra aplicación')
       if(!Array.isArray(payload.entries)) throw new Error('Formato no válido')
+      if(payload.entries.length===0 && entries.length>0) throw new Error('El backup está vacío')
+
+      if(entries.length>0) {
+        const safety={
+          app:"YOSE'S PROJECT",
+          version:2,
+          exportedAt:new Date().toISOString(),
+          entries,
+          settings,
+          intervalTimer:timer,
+          strengthDrafts:collectStrengthDrafts()
+        }
+        await saveTextFile(
+          `yoses-project-pre-import-${localFileTimestamp()}.json`,
+          JSON.stringify(safety,null,2),
+          'application/json'
+        )
+      }
+
       await replaceAllEntries(payload.entries as DailyEntry[])
       if(payload.settings) {
         const next={...DEFAULT_SETTINGS,...payload.settings}
@@ -559,8 +582,26 @@ function SettingsScreen({entries,onBack,onDataChanged}:{entries:DailyEntry[];onB
       await syncNativeWidgets()
       await onDataChanged()
       setNotice('Copia restaurada correctamente y protegida por el sistema de backup automático.')
-    } catch {
-      setNotice('No se pudo importar la copia. Revisa que sea un backup válido de YOSE’S PROJECT.')
+    } catch (error) {
+      console.error('No se pudo importar el backup.',error)
+      setNotice('No se pudo importar la copia. El archivo no ha sustituido tus datos actuales.')
+    }
+  }
+
+  async function verifyDataProtection() {
+    setNotice('Verificando copias recuperables…')
+    try {
+      const status=await verifyBackupProtection()
+      if(status.count>=2) {
+        setNotice(`Protección OK · ${status.count} copias recuperables verificadas.`)
+      } else if(status.count===1) {
+        setNotice('Protección parcial · hay 1 copia recuperable. Genera también una copia manual.')
+      } else {
+        setNotice('No se ha podido verificar ninguna copia recuperable todavía.')
+      }
+    } catch (error) {
+      console.error('No se pudo verificar el sistema de backup.',error)
+      setNotice('No se pudo verificar la protección de datos.')
     }
   }
 
@@ -660,6 +701,7 @@ function SettingsScreen({entries,onBack,onDataChanged}:{entries:DailyEntry[];onB
           <input ref={importRef} className="hidden-file-input" type="file" accept="application/json,.json" onChange={(e:any)=>{const file=e.target.files?.[0];if(file)void importBackup(file);e.target.value=''}}/>
         </div>
         <p className="settings-note">La copia manual se guarda en Descargas/YOSES PROJECT. Además, la app mantiene una copia automática visible en Descargas/YOSES PROJECT/AUTO y tres snapshots internos rotatorios incluidos en la copia de Android.</p>
+        <button className="settings-action" onClick={verifyDataProtection}>VERIFICAR PROTECCIÓN DE DATOS</button>
         <button className="danger-data-button" onClick={deleteAllData}><TrashIcon/> BORRAR TODOS LOS DATOS</button>
       </section>
 

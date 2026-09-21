@@ -190,6 +190,14 @@ function restoreLocalState(payload:Record<string,unknown>) {
   }
 }
 
+export async function verifyBackupProtection():Promise<{count:number;sources:string[]}> {
+  if(!Capacitor.isNativePlatform()) return {count:0,sources:[]}
+  await syncNativeWidgets()
+  const result=await YoseWidgets.getRecoverySnapshots()
+  const sources=(result.snapshots || []).map(item=>item.source).filter(Boolean)
+  return {count:sources.length,sources}
+}
+
 export async function recoverNativeStateIfNeeded():Promise<boolean> {
   if(!Capacitor.isNativePlatform()) return false
   const current=await getAllEntries()

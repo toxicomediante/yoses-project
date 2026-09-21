@@ -163,32 +163,36 @@ public class YoseWidgetsPlugin extends Plugin {
             Uri uri = overwrite ? findDownload(context, filename, relativePath) : null;
             boolean inserted = false;
 
-            if (uri == null) {
-                ContentValues values = new ContentValues();
-                values.put(MediaStore.MediaColumns.DISPLAY_NAME, filename);
-                values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
-                values.put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath);
-                values.put(MediaStore.MediaColumns.IS_PENDING, 1);
-                uri = context.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
-                inserted = true;
+            if (uri != null) {
+                try {
+                    writeUri(context, uri, contents);
+                    return displayPath;
+                } catch (Exception oldFileError) {
+                    android.util.Log.w("YoseBackup", "La copia previa ya no es escribible; se creará una nueva.", oldFileError);
+                    uri = null;
+                }
             }
+
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.MediaColumns.DISPLAY_NAME, filename);
+            values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
+            values.put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath);
+            values.put(MediaStore.MediaColumns.IS_PENDING, 1);
+            uri = context.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+            inserted = true;
 
             if (uri == null) throw new IllegalStateException("Android no pudo crear el archivo en Descargas.");
 
-            try (OutputStream output = context.getContentResolver().openOutputStream(uri, "w")) {
-                if (output == null) throw new IllegalStateException("No se pudo abrir el archivo para escritura.");
-                output.write(contents.getBytes(StandardCharsets.UTF_8));
-                output.flush();
+            try {
+                writeUri(context, uri, contents);
             } catch (Exception error) {
                 if (inserted) context.getContentResolver().delete(uri, null, null);
                 throw error;
             }
 
-            if (inserted) {
-                ContentValues ready = new ContentValues();
-                ready.put(MediaStore.MediaColumns.IS_PENDING, 0);
-                context.getContentResolver().update(uri, ready, null, null);
-            }
+            ContentValues ready = new ContentValues();
+            ready.put(MediaStore.MediaColumns.IS_PENDING, 0);
+            context.getContentResolver().update(uri, ready, null, null);
         } else {
             File downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
             String child = relativePath.substring(Environment.DIRECTORY_DOWNLOADS.length()).replaceAll("^/|/$", "");
@@ -205,6 +209,14 @@ public class YoseWidgetsPlugin extends Plugin {
         }
 
         return displayPath;
+    }
+
+    private void writeUri(Context context, Uri uri, String contents) throws Exception {
+        try (OutputStream output = context.getContentResolver().openOutputStream(uri, "w")) {
+            if (output == null) throw new IllegalStateException("No se pudo abrir el archivo para escritura.");
+            output.write(contents.getBytes(StandardCharsets.UTF_8));
+            output.flush();
+        }
     }
 
     private Uri findDownload(Context context, String filename, String relativePath) {
