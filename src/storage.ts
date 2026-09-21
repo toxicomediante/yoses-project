@@ -7,9 +7,28 @@ const DB_VERSION = 1
 
 interface YoseWidgetsNative {
   update(options: { snapshot: string }): Promise<void>
+  saveFile(options: { filename: string; contents: string; mimeType: string }): Promise<{ path: string }>
 }
 
 const YoseWidgets = registerPlugin<YoseWidgetsNative>('YoseWidgets')
+
+export async function saveTextFile(filename:string, contents:string, mimeType:string):Promise<string> {
+  if (Capacitor.isNativePlatform()) {
+    const result=await YoseWidgets.saveFile({filename,contents,mimeType})
+    return result.path
+  }
+
+  const blob=new Blob([contents],{type:mimeType})
+  const url=URL.createObjectURL(blob)
+  const a=document.createElement('a')
+  a.href=url
+  a.download=filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.setTimeout(()=>URL.revokeObjectURL(url),1000)
+  return `Descargas del navegador/${filename}`
+}
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {

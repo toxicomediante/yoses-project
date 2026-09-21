@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { App as CapacitorApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
-import { clearAllEntries, deleteEntry, getAllEntries, getEntry, saveEntry, syncNativeWidgets } from './storage'
+import { clearAllEntries, deleteEntry, getAllEntries, getEntry, saveEntry, saveTextFile, syncNativeWidgets } from './storage'
 import type { AlcoholCategory, AlcoholStatus, DailyEntry, TrainingExercise } from './types'
 import ritualNebula from './assets/ritual-nebula.png'
 import ritualMoon from './assets/ritual-moon.png'
@@ -22,17 +22,9 @@ function csvCell(value: unknown) {
   return `"${String(value).replace(/"/g,'""')}"`
 }
 
-function downloadCsv(filename:string, headers:string[], rows:Array<Array<unknown>>) {
+async function downloadCsv(filename:string, headers:string[], rows:Array<Array<unknown>>) {
   const csv='\uFEFF'+[headers,...rows].map(row=>row.map(csvCell).join(';')).join('\r\n')
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'})
-  const url=URL.createObjectURL(blob)
-  const a=document.createElement('a')
-  a.href=url
-  a.download=filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  window.setTimeout(()=>URL.revokeObjectURL(url),1000)
+  return saveTextFile(filename,csv,'text/csv')
 }
 
 function alcoholCsvValue(status:AlcoholStatus) {
@@ -527,7 +519,7 @@ function SettingsScreen({entries,onBack,onDataChanged}:{entries:DailyEntry[];onB
     return drafts
   }
 
-  function exportBackup() {
+  async function exportBackup() {
     const payload={
       app:"YOSE'S PROJECT",
       version:1,
@@ -537,16 +529,14 @@ function SettingsScreen({entries,onBack,onDataChanged}:{entries:DailyEntry[];onB
       intervalTimer:timer,
       strengthDrafts:collectStrengthDrafts()
     }
-    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'})
-    const url=URL.createObjectURL(blob)
-    const a=document.createElement('a')
-    a.href=url
-    a.download=`yoses-project-backup-${localIsoDate(new Date())}.json`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
-    setNotice('Copia de seguridad exportada.')
+    const filename=`yoses-project-backup-${localIsoDate(new Date())}.json`
+    try {
+      const path=await saveTextFile(filename,JSON.stringify(payload,null,2),'application/json')
+      setNotice(`Copia guardada en ${path}.`)
+    } catch (error) {
+      console.error('No se pudo exportar la copia de seguridad.',error)
+      setNotice('No se pudo guardar la copia de seguridad. Revisa el almacenamiento e inténtalo de nuevo.')
+    }
   }
 
   async function importBackup(file:File) {
@@ -668,7 +658,7 @@ function SettingsScreen({entries,onBack,onDataChanged}:{entries:DailyEntry[];onB
           <button onClick={()=>importRef.current?.click()}>IMPORTAR COPIA</button>
           <input ref={importRef} className="hidden-file-input" type="file" accept="application/json,.json" onChange={(e:any)=>{const file=e.target.files?.[0];if(file)void importBackup(file);e.target.value=''}}/>
         </div>
-        <p className="settings-note">La copia JSON incluye registros, ajustes, intervalómetro y borradores de fuerza. La exportación CSV tendrá su propia herramienta.</p>
+        <p className="settings-note">La copia JSON incluye registros, ajustes, intervalómetro y borradores de fuerza. En Android se guarda en Descargas/YOSES PROJECT.</p>
         <button className="danger-data-button" onClick={deleteAllData}><TrashIcon/> BORRAR TODOS LOS DATOS</button>
       </section>
 
@@ -689,6 +679,7 @@ function SettingsScreen({entries,onBack,onDataChanged}:{entries:DailyEntry[];onB
 function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) {
   const [range,setRange]=useState<HistoryRange>('30')
   const [strengthExercise,setStrengthExercise]=useState('')
+  const [exportNotice,setExportNotice]=useState('')
   const sorted=useMemo(()=>[...entries].sort((a,b)=>a.date.localeCompare(b.date)),[entries])
 
   const filtered=useMemo(()=>{
@@ -733,8 +724,18 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
   const weightDelta=latestWeight!==undefined&&firstWeight!==undefined ? latestWeight-firstWeight : undefined
   const maxHabit=Math.max(1,noAlcohol,alcohol,training)
 
+  async function exportCsv(filename:string,headers:string[],rows:Array<Array<unknown>>) {
+    try {
+      const path=await downloadCsv(filename,headers,rows)
+      setExportNotice(`Archivo guardado en ${path}.`)
+    } catch (error) {
+      console.error('No se pudo exportar el CSV.',error)
+      setExportNotice('No se pudo guardar el CSV. Revisa el almacenamiento e inténtalo de nuevo.')
+    }
+  }
+
   function exportDailyCsv() {
-    downloadCsv(
+    void exportCsv(
       `yoses-project-diario-completo-${localIsoDate(new Date())}.csv`,
       ['fecha','peso_kg','energia','animo','sueno','alcohol','entreno','minutos_entreno','tipo_entrenamiento','notas'],
       sorted.map(entry=>[
@@ -753,7 +754,7 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
   }
 
   function exportWeightCsv() {
-    downloadCsv(
+    void exportCsv(
       `yoses-project-peso-${localIsoDate(new Date())}.csv`,
       ['fecha','peso_kg'],
       sorted.filter(entry=>typeof entry.weightKg==='number').map(entry=>[entry.date,entry.weightKg ?? ''])
@@ -761,7 +762,7 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
   }
 
   function exportWellnessCsv() {
-    downloadCsv(
+    void exportCsv(
       `yoses-project-estado-del-dia-${localIsoDate(new Date())}.csv`,
       ['fecha','energia','animo','sueno','notas'],
       sorted
@@ -776,7 +777,7 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
       if(entry.alcohol!=='alcohol' || !entry.alcoholCategories) return ''
       return entry.alcoholCategories.includes(category) ? 1 : 0
     }
-    downloadCsv(
+    void exportCsv(
       `yoses-project-habitos-${localIsoDate(new Date())}.csv`,
       ['fecha','alcohol','cerveza','vino','destilados','cantidad_cerveza','cantidad_vino','cantidad_destilados','notas_alcohol','entreno'],
       sorted.map(entry=>[
@@ -822,7 +823,7 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
         })
       })
     })
-    downloadCsv(
+    void exportCsv(
       `yoses-project-entrenamientos-${localIsoDate(new Date())}.csv`,
       ['fecha','tipo_entrenamiento','duracion_min','grupo_muscular','ejercicio','carga_kg','numero_serie','repeticiones','volumen_serie'],
       rows
@@ -908,6 +909,7 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
         </div>
       </section>
 
+      {exportNotice&&<div className="settings-notice">{exportNotice}</div>}
       <button className="secondary-button" onClick={onBack}>VOLVER AL CALENDARIO</button>
       <footer>LOS DATOS NO JUZGAN. ENSEÑAN EL PATRÓN.</footer>
     </section>
