@@ -48,6 +48,32 @@ if (!appText.includes('androidx.glance:glance-appwidget')) {
     'dependencies {\n    implementation "androidx.glance:glance-appwidget:1.2.0"'
   )
 }
+
+// Stable release signing is injected only when CI explicitly enables it.
+// Credentials remain in GitHub Actions secrets and are never written to the repository.
+if (process.env.YOSE_SIGNING_ENABLED === 'true') {
+  if (!appText.includes('signingConfigs {')) {
+    appText = appText.replace(
+      /\n\s*buildTypes\s*\{/,
+      `
+    signingConfigs {
+        release {
+            storeFile file(System.getenv("YOSE_SIGNING_STORE_FILE"))
+            storePassword System.getenv("YOSE_SIGNING_STORE_PASSWORD")
+            keyAlias System.getenv("YOSE_SIGNING_KEY_ALIAS")
+            keyPassword System.getenv("YOSE_SIGNING_KEY_PASSWORD")
+        }
+    }
+
+    buildTypes {`
+    )
+  }
+  appText = appText.replace(
+    /(release\s*\{\s*\n)(?!\s*signingConfig)/,
+    '$1            signingConfig signingConfigs.release\n'
+  )
+}
+
 writeFileSync(appGradle, appText)
 
 const mainRoot = path.join(android, 'app', 'src', 'main')

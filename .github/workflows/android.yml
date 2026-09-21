@@ -1,4 +1,4 @@
-name: Android debug
+name: Android
 
 on:
   workflow_dispatch:
@@ -41,7 +41,26 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Detect stable signing
+        id: signing
+        env:
+          KEYSTORE_B64: ${{ secrets.YOSE_ANDROID_KEYSTORE_B64 }}
+          STORE_PASSWORD: ${{ secrets.YOSE_ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.YOSE_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.YOSE_ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$STORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
+            echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/yoses-project-release.jks"
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Firma estable disponible."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Firma estable NO configurada. Se compilará debug para verificar, pero NO se publicará como descarga."
+          fi
+
       - name: Prepare Android project
+        env:
+          YOSE_SIGNING_ENABLED: ${{ steps.signing.outputs.configured }}
         run: npm run android:prepare
 
       - name: Guard against recursive APK bundling
@@ -52,26 +71,53 @@ jobs:
             exit 1
           fi
 
-      - name: Build debug APK
+      - name: Build debug APK for verification
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Upload debug verification APK
         uses: actions/upload-artifact@v4
         with:
-          name: yoses-project-debug
+          name: yoses-project-debug-verification
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      - name: Publish direct test APK
+      - name: Build signed release APK
+        if: steps.signing.outputs.configured == 'true'
+        env:
+          YOSE_SIGNING_STORE_FILE: ${{ runner.temp }}/yoses-project-release.jks
+          YOSE_SIGNING_STORE_PASSWORD: ${{ secrets.YOSE_ANDROID_STORE_PASSWORD }}
+          YOSE_SIGNING_KEY_ALIAS: ${{ secrets.YOSE_ANDROID_KEY_ALIAS }}
+          YOSE_SIGNING_KEY_PASSWORD: ${{ secrets.YOSE_ANDROID_KEY_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew assembleRelease --stacktrace
+
+      - name: Verify release signature
+        if: steps.signing.outputs.configured == 'true'
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+
+      - name: Upload signed release APK
+        if: steps.signing.outputs.configured == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: yoses-project-signed-release
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      - name: Publish stable signed APK
+        if: steps.signing.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk YOSES-PROJECT-debug.apk
+          cp android/app/build/outputs/apk/release/app-release.apk YOSES-PROJECT.apk
           if ! gh release view test-build >/dev/null 2>&1; then
-            gh release create test-build --target main --prerelease --title "YOSE'S PROJECT · Test build" --notes "APK de pruebas de YOSE'S PROJECT. Esta release se actualiza con la última compilación Android válida."
+            gh release create test-build --target main --prerelease --title "YOSE'S PROJECT · Test build" --notes "APK firmada de YOSE'S PROJECT. Las siguientes compilaciones usan la misma identidad de firma para permitir actualización sin desinstalar."
           fi
-          gh release upload test-build YOSES-PROJECT-debug.apk --clobber
-
+          gh release upload test-build YOSES-PROJECT.apk --clobber
