@@ -135,7 +135,7 @@ for (let frame = 0; frame < ritualFrameCount; frame++) {
 
 const spotifyAstroFallback = path.join(root, 'src', 'assets', 'ritual-nebula.png')
 for (let i = 1; i <= 4; i++) {
-  const requested = path.join(root, 'src', 'assets', `spotify-astro-${i}.png`)
+  const requested = path.join(root, 'src', 'assets', `spotify-astro-${i}.webp`)
   const source = existsSync(requested) ? requested : spotifyAstroFallback
   const darkOverlay = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="420" height="420"><rect width="420" height="420" fill="#030504" fill-opacity=".48"/></svg>')
   await sharp(source)
