@@ -5,6 +5,7 @@ export interface TrainingSet {
   reps?: number
 }
 
+// exerciseId keeps exercise history stable across display-name changes; RIR is stored per exercise/session.
 export interface TrainingExercise {
   exerciseId?: string
   muscleGroup: string
