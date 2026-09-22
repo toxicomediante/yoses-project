@@ -413,3 +413,17 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;ba
     margin-top:0;
   }
 }
+
+
+/* training-rir-upgrade */
+.strength-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+.strength-metrics .strength-load{margin-top:0;min-width:0}
+.strength-metrics .rir-field>div{border-color:rgba(207,255,26,.38);background:rgba(207,255,26,.04)}
+.strength-metrics .rir-field>span{color:#b9c49d}
+.performance-chip.rir-chip{width:72px;border-color:rgba(207,255,26,.38);background:rgba(207,255,26,.04)}
+.performance-chip.rir-chip b{color:var(--acid)}
+.performance-chip.rir-chip em{font-size:4px;letter-spacing:.55px;text-align:center}
+@media(max-width:360px){
+  .strength-metrics{grid-template-columns:1fr 1fr;gap:6px}
+  .strength-load>div{grid-template-columns:1fr 40px}
+}

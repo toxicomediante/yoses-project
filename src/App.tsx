@@ -3,6 +3,7 @@ import { App as CapacitorApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
 import { clearAllEntries, deleteEntry, getAllEntries, getEntry, recoverNativeStateIfNeeded, replaceAllEntries, saveEntry, saveTextFile, syncNativeWidgets, verifyBackupProtection } from './storage'
 import type { AlcoholCategory, AlcoholStatus, DailyEntry, TrainingExercise } from './types'
+import { STRENGTH_EXERCISES, canonicalExerciseName, exerciseIdForName, normalizeDailyEntry, normalizeTrainingExercise } from './exerciseCatalog'
 import ritualNebula from './assets/ritual-nebula.png'
 import ritualMoon from './assets/ritual-moon.png'
 
@@ -95,19 +96,10 @@ function Rating({label, value, onChange}:{label:string,value?:number,onChange:(v
 }
 
 
-const STRENGTH_EXERCISES: Record<string,string[]> = {
-  'Pierna': ['Sentadilla con barra','Sentadilla frontal','Prensa de piernas','Peso muerto rumano','Zancadas','Extensión de cuádriceps','Curl femoral','Elevación de gemelos'],
-  'Pecho': ['Press de banca plano','Press inclinado','Press con mancuernas','Fondos','Aperturas'],
-  'Espalda': ['Remo con barra','Remo con mancuerna','Dominadas','Jalón al pecho','Peso muerto','Remo en máquina'],
-  'Hombro': ['Press militar','Press con mancuernas','Elevaciones laterales','Pájaros','Face pull'],
-  'Bíceps': ['Curl de bíceps','Curl martillo','Curl predicador'],
-  'Tríceps': ['Press cerrado','Extensión de tríceps','Press francés','Fondos de tríceps'],
-  'Core': ['Plancha','Crunch en polea','Elevación de piernas','Rueda abdominal'],
-  'Otro': ['Otro']
-}
-
 function createStrengthExercise(): TrainingExercise {
-  return { muscleGroup:'Pierna', name:'Sentadilla con barra', sets:[{}] }
+  const muscleGroup='Pierna / Glúteo'
+  const name=STRENGTH_EXERCISES[muscleGroup][0]
+  return { exerciseId:exerciseIdForName(name,muscleGroup), muscleGroup, name, sets:[{}] }
 }
 
 interface AppSettings {
@@ -134,7 +126,10 @@ const DEFAULT_SETTINGS: AppSettings = {
 function loadAppSettings(): AppSettings {
   try {
     const raw=localStorage.getItem('yoses-settings')
-    return raw ? {...DEFAULT_SETTINGS,...JSON.parse(raw)} : DEFAULT_SETTINGS
+    const parsed=raw ? JSON.parse(raw) : {}
+    const merged={...DEFAULT_SETTINGS,...parsed}
+    const favorites=Array.isArray(merged.favoriteExercises) ? (merged.favoriteExercises as string[]).map(name=>canonicalExerciseName(name)) : []
+    return {...merged,favoriteExercises:Array.from(new Set(favorites))}
   } catch {
     return DEFAULT_SETTINGS
   }
@@ -748,14 +743,24 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
   const registeredDays=registered.length
   const denom=Math.max(1,registeredDays)
 
-  const exerciseNames=useMemo(()=>Array.from(new Set(sorted.flatMap(e=>(e.exercises||[]).map(ex=>ex.name)).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'es')),[sorted])
+  const exerciseOptions=useMemo(()=>{
+    const options=new Map<string,string>()
+    sorted.forEach(entry=>(entry.exercises||[]).forEach(rawExercise=>{
+      if(!rawExercise.name) return
+      const exercise=normalizeTrainingExercise(rawExercise)
+      const id=exercise.exerciseId || `name:${exercise.name}`
+      if(!options.has(id)) options.set(id,exercise.name)
+    }))
+    return Array.from(options,([id,name])=>({id,name})).sort((a,b)=>a.name.localeCompare(b.name,'es'))
+  },[sorted])
   useEffect(()=>{
-    if(!strengthExercise && exerciseNames.length) setStrengthExercise(exerciseNames[0])
-    else if(strengthExercise && !exerciseNames.includes(strengthExercise)) setStrengthExercise(exerciseNames[0]||'')
-  },[exerciseNames,strengthExercise])
+    if(!strengthExercise && exerciseOptions.length) setStrengthExercise(exerciseOptions[0].id)
+    else if(strengthExercise && !exerciseOptions.some(option=>option.id===strengthExercise)) setStrengthExercise(exerciseOptions[0]?.id||'')
+  },[exerciseOptions,strengthExercise])
 
   const strengthData=sorted.flatMap(entry=>(entry.exercises||[])
-    .filter(ex=>ex.name===strengthExercise)
+    .map(normalizeTrainingExercise)
+    .filter(ex=>(ex.exerciseId || `name:${ex.name}`)===strengthExercise)
     .map(ex=>{
       const reps=(ex.sets||[]).reduce((sum,set)=>sum+(set.reps||0),0)
       const load=ex.loadKg||0
@@ -844,21 +849,24 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
       const exercises=entry.exercises ?? []
       if(!entry.trained && exercises.length===0) return
       if(exercises.length===0) {
-        rows.push([entry.date,entry.trainingType ?? '',entry.trainingMinutes ?? '','','','','','',''])
+        rows.push([entry.date,entry.trainingType ?? '',entry.trainingMinutes ?? '','','','','','','','',''])
         return
       }
-      exercises.forEach(exercise=>{
+      exercises.map(normalizeTrainingExercise).forEach(exercise=>{
         const sets=exercise.sets?.length ? exercise.sets : [{}]
         sets.forEach((set,index)=>{
           const load=typeof exercise.loadKg==='number' ? exercise.loadKg : null
+          const rir=typeof exercise.rir==='number' ? exercise.rir : null
           const reps=typeof set.reps==='number' ? set.reps : null
           rows.push([
             entry.date,
             entry.trainingType ?? '',
             entry.trainingMinutes ?? '',
             exercise.muscleGroup,
+            exercise.exerciseId ?? '',
             exercise.name,
             load ?? '',
+            rir ?? '',
             index+1,
             reps ?? '',
             load!==null && reps!==null ? load*reps : ''
@@ -868,10 +876,11 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
     })
     void exportCsv(
       `yoses-project-entrenamientos-${localIsoDate(new Date())}.csv`,
-      ['fecha','tipo_entrenamiento','duracion_min','grupo_muscular','ejercicio','carga_kg','numero_serie','repeticiones','volumen_serie'],
+      ['fecha','tipo_entrenamiento','duracion_min','grupo_muscular','exercise_id','ejercicio','carga_kg','rir','numero_serie','repeticiones','volumen_serie'],
       rows
     )
   }
+
 
   return <main className="app-shell">
     <section className="phone-surface history-screen">
@@ -922,8 +931,8 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
 
       <section className="entry-card history-card strength-history-card">
         <div className="history-card-head"><div><span>FUERZA</span><strong>EVOLUCIÓN POR EJERCICIO</strong></div></div>
-        {exerciseNames.length ? <>
-          <label className="history-exercise-select"><span>EJERCICIO</span><select value={strengthExercise} onChange={(e:any)=>setStrengthExercise(e.target.value)}>{exerciseNames.map(name=><option key={name}>{name}</option>)}</select></label>
+        {exerciseOptions.length ? <>
+          <label className="history-exercise-select"><span>EJERCICIO</span><select value={strengthExercise} onChange={(e:any)=>setStrengthExercise(e.target.value)}>{exerciseOptions.map(option=><option key={option.id} value={option.id}>{option.name}</option>)}</select></label>
           {strengthData.length ? <>
             <div className="strength-history-metrics">
               <span><small>ÚLTIMA CARGA</small><b>{strengthData.at(-1)?.load || 0} KG</b></span>
@@ -948,7 +957,7 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
           <div className="data-export-item"><div><b>PESO</b><small>Fecha y peso registrado, listo para estudiar la evolución corporal.</small></div><button onClick={exportWeightCsv}>EXPORTAR CSV</button></div>
           <div className="data-export-item"><div><b>ESTADO DEL DÍA</b><small>Energía, ánimo, sueño y notas en cada fecha registrada.</small></div><button onClick={exportWellnessCsv}>EXPORTAR CSV</button></div>
           <div className="data-export-item"><div><b>HÁBITOS</b><small>Alcohol, categorías y cantidades registradas, junto con el indicador de entreno.</small></div><button onClick={exportHabitsCsv}>EXPORTAR CSV</button></div>
-          <div className="data-export-item"><div><b>ENTRENAMIENTOS</b><small>Una fila por serie con ejercicio, carga, repeticiones y volumen calculado.</small></div><button onClick={exportTrainingCsv}>EXPORTAR CSV</button></div>
+          <div className="data-export-item"><div><b>ENTRENAMIENTOS</b><small>Una fila por serie con ejercicio, carga, RIR, repeticiones y volumen calculado.</small></div><button onClick={exportTrainingCsv}>EXPORTAR CSV</button></div>
         </div>
       </section>
 
@@ -972,7 +981,7 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
     if (!raw) return
     try {
       const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed) && parsed.length) setExercises(parsed)
+      if (Array.isArray(parsed) && parsed.length) setExercises(parsed.map(normalizeTrainingExercise))
     } catch {}
   }, [draftKey])
 
@@ -990,7 +999,7 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
 
   function changeGroup(index:number,muscleGroup:string) {
     const nextName=STRENGTH_EXERCISES[muscleGroup]?.[0] || 'Otro'
-    updateExercise(index,{muscleGroup,name:nextName})
+    updateExercise(index,{muscleGroup,name:nextName,exerciseId:exerciseIdForName(nextName,muscleGroup)})
   }
 
   function addSet(exerciseIndex:number) {
@@ -1015,7 +1024,7 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
   async function dumpToDailyEntry() {
     const valid = exercises
       .filter(exercise=>exercise.name.trim() && exercise.sets.length)
-      .map(exercise=>({...exercise,name:exercise.name.trim(),loadKg:Number(exercise.loadKg)||0,sets:exercise.sets.map(set=>({reps:Math.max(0,Number(set.reps)||0)}))}))
+      .map(exercise=>normalizeTrainingExercise({...exercise,name:exercise.name.trim(),loadKg:Number(exercise.loadKg)||0,rir:typeof exercise.rir==='number'?Math.min(10,Math.max(0,exercise.rir)):undefined,sets:exercise.sets.map(set=>({reps:Math.max(0,Number(set.reps)||0)}))}))
     if (!valid.length) return
 
     const current = await getEntry(date)
@@ -1076,10 +1085,13 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
 
           <div className="strength-select-grid">
             <label><span>GRUPO MUSCULAR</span><select value={exercise.muscleGroup} onChange={(e:any)=>changeGroup(index,e.target.value)}>{Object.keys(STRENGTH_EXERCISES).map(group=><option key={group}>{group}</option>)}</select></label>
-            <label><span>EJERCICIO</span><select value={exercise.name} onChange={(e:any)=>updateExercise(index,{name:e.target.value})}>{[...(STRENGTH_EXERCISES[exercise.muscleGroup]||['Otro'])].sort((a,b)=>Number(favoriteExercises.includes(b))-Number(favoriteExercises.includes(a))).map(name=><option key={name}>{favoriteExercises.includes(name)?'★ ':''}{name}</option>)}</select></label>
+            <label><span>EJERCICIO</span><select value={exercise.name} onChange={(e:any)=>{const name=e.target.value;updateExercise(index,{name,exerciseId:exerciseIdForName(name,exercise.muscleGroup)})}}>{[...(STRENGTH_EXERCISES[exercise.muscleGroup]||['Otro'])].sort((a,b)=>Number(favoriteExercises.includes(b))-Number(favoriteExercises.includes(a))).map(name=><option key={name}>{favoriteExercises.includes(name)?'★ ':''}{name}</option>)}</select></label>
           </div>
 
-          <label className="strength-load"><span>CARGA</span><div><input type="number" inputMode="decimal" min="0" step="0.5" placeholder="—" value={exercise.loadKg ?? ''} onChange={(e:any)=>updateExercise(index,{loadKg:e.target.value===''?undefined:Number(e.target.value)})}/><b>KG</b></div></label>
+          <div className="strength-metrics">
+            <label className="strength-load"><span>CARGA</span><div><input type="number" inputMode="decimal" min="0" step="0.5" placeholder="—" value={exercise.loadKg ?? ''} onChange={(e:any)=>updateExercise(index,{loadKg:e.target.value===''?undefined:Number(e.target.value)})}/><b>KG</b></div></label>
+            <label className="strength-load rir-field"><span>RIR</span><div><input type="number" inputMode="numeric" min="0" max="10" step="1" placeholder="—" value={exercise.rir ?? ''} onChange={(e:any)=>updateExercise(index,{rir:e.target.value===''?undefined:Math.min(10,Math.max(0,Number(e.target.value)))})}/><b>RIR</b></div></label>
+          </div>
 
           <div className="strength-sets">
             <div className="strength-sets-head"><span>SERIES REALES</span><small>REP.</small></div>
@@ -1114,7 +1126,7 @@ function App() {
   const homeSwipeStart = useRef<{x:number,y:number} | null>(null)
 
   async function refresh() {
-    setEntries(await getAllEntries())
+    setEntries((await getAllEntries()).map(normalizeDailyEntry))
     setLoading(false)
     void syncNativeWidgets()
   }
@@ -1297,7 +1309,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
     void getEntry(date).then(e => {
       setHasExistingRecord(Boolean(e))
       if (!e) return
-      setAlcohol(e.alcohol); setAlcoholCategories(e.alcoholCategories || []); setAlcoholAmounts(e.alcoholAmounts || {}); setAlcoholNotes(e.alcoholNotes || ''); setAlcoholDetailOpen(e.alcohol === 'alcohol'); setTrained(e.trained); setTrainingMinutes(e.trainingMinutes); setTrainingType(e.trainingType || 'Fuerza'); setExercises(e.exercises?.length ? e.exercises.map(item => ({...item,muscleGroup:item.muscleGroup || 'Otro',sets:Array.isArray(item.sets)?item.sets:[]})) : [{muscleGroup:'Otro',name:'',sets:[]}])
+      setAlcohol(e.alcohol); setAlcoholCategories(e.alcoholCategories || []); setAlcoholAmounts(e.alcoholAmounts || {}); setAlcoholNotes(e.alcoholNotes || ''); setAlcoholDetailOpen(e.alcohol === 'alcohol'); setTrained(e.trained); setTrainingMinutes(e.trainingMinutes); setTrainingType(e.trainingType || 'Fuerza'); setExercises(e.exercises?.length ? e.exercises.map(normalizeTrainingExercise) : [{muscleGroup:'Otro',name:'',sets:[]}])
       setEnergy(e.energy); setMood(e.mood); setSleep(e.sleep); setWeightKg(e.weightKg); setNotes(e.notes || '')
     })
   }, [date])
@@ -1317,7 +1329,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
   }
 
   async function handleSave() {
-    const cleanExercises: TrainingExercise[] = exercises.filter(exercise => exercise.name.trim()).map(exercise => ({...exercise,name:exercise.name.trim(),sets:Array.isArray(exercise.sets)?exercise.sets:[]}))
+    const cleanExercises: TrainingExercise[] = exercises.filter(exercise => exercise.name.trim()).map(exercise => normalizeTrainingExercise({...exercise,name:exercise.name.trim(),sets:Array.isArray(exercise.sets)?exercise.sets:[]}))
     const entry: DailyEntry = { date, alcohol, alcoholCategories: alcohol === 'alcohol' ? alcoholCategories : undefined, alcoholAmounts: alcohol === 'alcohol' ? alcoholAmounts : undefined, alcoholNotes: alcohol === 'alcohol' && alcoholNotes.trim() ? alcoholNotes.trim() : undefined, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, exercises: trained && cleanExercises.length ? cleanExercises : undefined, energy, mood, sleep, weightKg, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
     await saveEntry(entry)
     setHasExistingRecord(true)
@@ -1422,6 +1434,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
 
             {exercises.map((exercise,index) => {
               const hasLoad = exercise.loadKg !== undefined && exercise.loadKg !== null
+              const hasRir = exercise.rir !== undefined && exercise.rir !== null
               const visibleSets = Array.isArray(exercise.sets) ? exercise.sets.filter(set => set.reps !== undefined && set.reps !== null) : []
               return <div className="exercise-record" key={index}>
                 <div className="exercise-row">
@@ -1441,11 +1454,16 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
                   >×</button>}
                 </div>
 
-                {(hasLoad || visibleSets.length > 0) && <div className="exercise-performance">
+                {(hasLoad || hasRir || visibleSets.length > 0) && <div className="exercise-performance">
                   {hasLoad && <div className="performance-chip load-chip">
                     <small>CARGA</small>
                     <b>{exercise.loadKg}</b>
                     <em>KG</em>
+                  </div>}
+                  {hasRir && <div className="performance-chip rir-chip">
+                    <small>RIR</small>
+                    <b>{exercise.rir}</b>
+                    <em>REPS EN RESERVA</em>
                   </div>}
                   {visibleSets.map((set,setIndex)=><div className="performance-chip" key={setIndex}>
                     <small>S{setIndex + 1}</small>

@@ -6,9 +6,11 @@ export interface TrainingSet {
 }
 
 export interface TrainingExercise {
+  exerciseId?: string
   muscleGroup: string
   name: string
   loadKg?: number
+  rir?: number
   sets: TrainingSet[]
 }
 
