@@ -204,14 +204,22 @@ export function normalizeTrainingExercise(exercise:TrainingExercise):TrainingExe
   const originalName=(exercise.name||'').trim()
   const canonicalName=canonicalExerciseName(originalName,exercise.muscleGroup)
   const definition=BY_NAME.get(canonicalName) || (exercise.exerciseId ? BY_ID.get(exercise.exerciseId) : undefined)
-  const rirValue=typeof exercise.rir==='number' ? exercise.rir : Number(exercise.rir)
+  const legacyRirValue=typeof exercise.rir==='number' ? exercise.rir : Number(exercise.rir)
+  const legacyRir=Number.isFinite(legacyRirValue) ? Math.min(10,Math.max(0,legacyRirValue)) : undefined
+  const sets=Array.isArray(exercise.sets) ? exercise.sets.map(set=>{
+    const setRirValue=typeof set.rir==='number' ? set.rir : Number(set.rir)
+    return {
+      ...set,
+      rir:Number.isFinite(setRirValue) ? Math.min(10,Math.max(0,setRirValue)) : undefined
+    }
+  }) : []
   return {
     ...exercise,
     exerciseId: definition?.id || exercise.exerciseId,
     muscleGroup: definition?.group || exercise.muscleGroup || 'Otro',
     name: definition?.name || canonicalName,
-    rir: Number.isFinite(rirValue) ? Math.min(10,Math.max(0,rirValue)) : undefined,
-    sets: Array.isArray(exercise.sets) ? exercise.sets : []
+    rir: legacyRir,
+    sets
   }
 }
 

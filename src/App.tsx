@@ -856,7 +856,7 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
         const sets=exercise.sets?.length ? exercise.sets : [{}]
         sets.forEach((set,index)=>{
           const load=typeof exercise.loadKg==='number' ? exercise.loadKg : null
-          const rir=typeof exercise.rir==='number' ? exercise.rir : null
+          const rir=typeof set.rir==='number' ? set.rir : (typeof exercise.rir==='number' ? exercise.rir : null)
           const reps=typeof set.reps==='number' ? set.reps : null
           rows.push([
             entry.date,
@@ -957,7 +957,7 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
           <div className="data-export-item"><div><b>PESO</b><small>Fecha y peso registrado, listo para estudiar la evolución corporal.</small></div><button onClick={exportWeightCsv}>EXPORTAR CSV</button></div>
           <div className="data-export-item"><div><b>ESTADO DEL DÍA</b><small>Energía, ánimo, sueño y notas en cada fecha registrada.</small></div><button onClick={exportWellnessCsv}>EXPORTAR CSV</button></div>
           <div className="data-export-item"><div><b>HÁBITOS</b><small>Alcohol, categorías y cantidades registradas, junto con el indicador de entreno.</small></div><button onClick={exportHabitsCsv}>EXPORTAR CSV</button></div>
-          <div className="data-export-item"><div><b>ENTRENAMIENTOS</b><small>Una fila por serie con ejercicio, carga, RIR, repeticiones y volumen calculado.</small></div><button onClick={exportTrainingCsv}>EXPORTAR CSV</button></div>
+          <div className="data-export-item"><div><b>ENTRENAMIENTOS</b><small>Una fila por serie con ejercicio, carga, RIR por serie, repeticiones y volumen calculado.</small></div><button onClick={exportTrainingCsv}>EXPORTAR CSV</button></div>
         </div>
       </section>
 
@@ -1006,10 +1006,10 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
     setExercises(current=>current.map((exercise,i)=>i===exerciseIndex?{...exercise,sets:[...exercise.sets,{reps:exercise.sets.at(-1)?.reps ?? 5}]}:exercise))
   }
 
-  function updateSet(exerciseIndex:number,setIndex:number,reps:number | undefined) {
+  function updateSet(exerciseIndex:number,setIndex:number,patch:{reps?:number;rir?:number}) {
     setExercises(current=>current.map((exercise,i)=>{
       if(i!==exerciseIndex)return exercise
-      return {...exercise,sets:exercise.sets.map((set,j)=>j===setIndex?{...set,reps}:set)}
+      return {...exercise,sets:exercise.sets.map((set,j)=>j===setIndex?{...set,...patch}:set)}
     }))
   }
 
@@ -1024,7 +1024,7 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
   async function dumpToDailyEntry() {
     const valid = exercises
       .filter(exercise=>exercise.name.trim() && exercise.sets.length)
-      .map(exercise=>normalizeTrainingExercise({...exercise,name:exercise.name.trim(),loadKg:Number(exercise.loadKg)||0,rir:typeof exercise.rir==='number'?Math.min(10,Math.max(0,exercise.rir)):undefined,sets:exercise.sets.map(set=>({reps:Math.max(0,Number(set.reps)||0)}))}))
+      .map(exercise=>normalizeTrainingExercise({...exercise,name:exercise.name.trim(),loadKg:Number(exercise.loadKg)||0,rir:typeof exercise.rir==='number'?Math.min(10,Math.max(0,exercise.rir)):undefined,sets:exercise.sets.map(set=>({reps:Math.max(0,Number(set.reps)||0),rir:typeof set.rir==='number'?Math.min(10,Math.max(0,set.rir)):undefined}))}))
     if (!valid.length) return
 
     const current = await getEntry(date)
@@ -1088,16 +1088,16 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
             <label><span>EJERCICIO</span><select value={exercise.name} onChange={(e:any)=>{const name=e.target.value;updateExercise(index,{name,exerciseId:exerciseIdForName(name,exercise.muscleGroup)})}}>{[...(STRENGTH_EXERCISES[exercise.muscleGroup]||['Otro'])].sort((a,b)=>Number(favoriteExercises.includes(b))-Number(favoriteExercises.includes(a))).map(name=><option key={name}>{favoriteExercises.includes(name)?'★ ':''}{name}</option>)}</select></label>
           </div>
 
-          <div className="strength-metrics">
+          <div className="strength-metrics strength-metrics-single">
             <label className="strength-load"><span>CARGA</span><div><input type="number" inputMode="decimal" min="0" step="0.5" placeholder="—" value={exercise.loadKg ?? ''} onChange={(e:any)=>updateExercise(index,{loadKg:e.target.value===''?undefined:Number(e.target.value)})}/><b>KG</b></div></label>
-            <label className="strength-load rir-field"><span>RIR</span><div><input type="number" inputMode="numeric" min="0" max="10" step="1" placeholder="—" value={exercise.rir ?? ''} onChange={(e:any)=>updateExercise(index,{rir:e.target.value===''?undefined:Math.min(10,Math.max(0,Number(e.target.value)))})}/><b>RIR</b></div></label>
           </div>
 
           <div className="strength-sets">
-            <div className="strength-sets-head"><span>SERIES REALES</span><small>REP.</small></div>
+            <div className="strength-sets-head"><span>SERIES REALES</span><small>REP.</small><small>RIR</small><i aria-hidden="true"/></div>
             {exercise.sets.map((set,setIndex)=><div className="strength-set-row" key={setIndex}>
               <b>SERIE {setIndex+1}</b>
-              <input type="number" inputMode="numeric" min="0" max="99" placeholder="—" value={set.reps ?? ''} onChange={(e:any)=>updateSet(index,setIndex,e.target.value===''?undefined:Number(e.target.value))}/>
+              <input className="set-reps-input" type="number" inputMode="numeric" min="0" max="99" placeholder="—" value={set.reps ?? ''} onChange={(e:any)=>updateSet(index,setIndex,{reps:e.target.value===''?undefined:Number(e.target.value)})} aria-label={`Repeticiones serie ${setIndex+1}`}/>
+              <input className="set-rir-input" type="number" inputMode="numeric" min="0" max="10" step="1" placeholder="—" value={set.rir ?? ''} onChange={(e:any)=>updateSet(index,setIndex,{rir:e.target.value===''?undefined:Math.min(10,Math.max(0,Number(e.target.value)))})} aria-label={`RIR serie ${setIndex+1}`}/>
               <button onClick={()=>removeSet(index,setIndex)} aria-label={`Eliminar serie ${setIndex+1}`}>×</button>
             </div>)}
             <button className="add-set-button" onClick={()=>addSet(index)}>+ AÑADIR SERIE</button>
@@ -1434,8 +1434,8 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
 
             {exercises.map((exercise,index) => {
               const hasLoad = exercise.loadKg !== undefined && exercise.loadKg !== null
-              const hasRir = exercise.rir !== undefined && exercise.rir !== null
-              const visibleSets = Array.isArray(exercise.sets) ? exercise.sets.filter(set => set.reps !== undefined && set.reps !== null) : []
+              const hasLegacyRir = exercise.rir !== undefined && exercise.rir !== null
+              const visibleSets = Array.isArray(exercise.sets) ? exercise.sets.filter(set => (set.reps !== undefined && set.reps !== null) || (set.rir !== undefined && set.rir !== null)) : []
               return <div className="exercise-record" key={index}>
                 <div className="exercise-row">
                   <label>
@@ -1454,21 +1454,21 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
                   >×</button>}
                 </div>
 
-                {(hasLoad || hasRir || visibleSets.length > 0) && <div className="exercise-performance">
+                {(hasLoad || hasLegacyRir || visibleSets.length > 0) && <div className="exercise-performance">
                   {hasLoad && <div className="performance-chip load-chip">
                     <small>CARGA</small>
                     <b>{exercise.loadKg}</b>
                     <em>KG</em>
                   </div>}
-                  {hasRir && <div className="performance-chip rir-chip">
-                    <small>RIR</small>
+                  {hasLegacyRir && <div className="performance-chip rir-chip">
+                    <small>RIR ANT.</small>
                     <b>{exercise.rir}</b>
-                    <em>REPS EN RESERVA</em>
+                    <em>REGISTRO GLOBAL</em>
                   </div>}
-                  {visibleSets.map((set,setIndex)=><div className="performance-chip" key={setIndex}>
+                  {visibleSets.map((set,setIndex)=><div className={`performance-chip ${typeof set.rir==='number'?'series-rir-chip':''}`} key={setIndex}>
                     <small>S{setIndex + 1}</small>
-                    <b>{set.reps}</b>
-                    <em>REP</em>
+                    <b>{set.reps ?? '—'}</b>
+                    <em>{typeof set.rir==='number'?`REP · RIR ${set.rir}`:'REP'}</em>
                   </div>)}
                 </div>}
               </div>

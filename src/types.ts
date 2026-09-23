@@ -3,9 +3,11 @@ export type AlcoholCategory = 'beer' | 'wine' | 'spirits'
 
 export interface TrainingSet {
   reps?: number
+  rir?: number
 }
 
-// exerciseId keeps exercise history stable across display-name changes; RIR is stored per exercise/session.
+// exerciseId keeps exercise history stable across display-name changes.
+// rir on TrainingExercise is retained only for backwards compatibility with older records.
 export interface TrainingExercise {
   exerciseId?: string
   muscleGroup: string
