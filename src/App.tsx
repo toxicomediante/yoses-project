@@ -730,13 +730,14 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
   },[sorted,range])
 
   const weightPoints=filtered.filter(e=>typeof e.weightKg==='number').map(e=>({date:e.date,value:e.weightKg as number}))
+  const waistPoints=filtered.filter(e=>typeof e.waistCm==='number').map(e=>({date:e.date,value:e.waistCm as number}))
   const wellnessSeries=[
     {label:'ENERGÍA',points:filtered.filter(e=>typeof e.energy==='number').map(e=>({date:e.date,value:e.energy as number}))},
     {label:'ÁNIMO',points:filtered.filter(e=>typeof e.mood==='number').map(e=>({date:e.date,value:e.mood as number}))},
     {label:'SUEÑO',points:filtered.filter(e=>typeof e.sleep==='number').map(e=>({date:e.date,value:e.sleep as number}))}
   ]
 
-  const registered=filtered.filter(e=>e.alcohol!==null || e.trained || e.weightKg!==undefined || e.energy!==undefined || e.mood!==undefined || e.sleep!==undefined)
+  const registered=filtered.filter(e=>e.alcohol!==null || e.trained || e.weightKg!==undefined || e.waistCm!==undefined || e.energy!==undefined || e.mood!==undefined || e.sleep!==undefined)
   const noAlcohol=filtered.filter(e=>e.alcohol==='none').length
   const alcohol=filtered.filter(e=>e.alcohol==='alcohol').length
   const training=filtered.filter(e=>e.trained).length
@@ -770,6 +771,9 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
   const latestWeight=weightPoints.at(-1)?.value
   const firstWeight=weightPoints[0]?.value
   const weightDelta=latestWeight!==undefined&&firstWeight!==undefined ? latestWeight-firstWeight : undefined
+  const latestWaist=waistPoints.at(-1)?.value
+  const firstWaist=waistPoints[0]?.value
+  const waistDelta=latestWaist!==undefined&&firstWaist!==undefined ? latestWaist-firstWaist : undefined
   const maxHabit=Math.max(1,noAlcohol,alcohol,training)
 
   async function exportCsv(filename:string,headers:string[],rows:Array<Array<unknown>>) {
@@ -785,10 +789,11 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
   function exportDailyCsv() {
     void exportCsv(
       `yoses-project-diario-completo-${localIsoDate(new Date())}.csv`,
-      ['fecha','peso_kg','energia','animo','sueno','alcohol','entreno','minutos_entreno','tipo_entrenamiento','notas'],
+      ['fecha','peso_kg','cintura_cm','energia','animo','sueno','alcohol','entreno','minutos_entreno','tipo_entrenamiento','notas'],
       sorted.map(entry=>[
         entry.date,
         entry.weightKg ?? '',
+        entry.waistCm ?? '',
         entry.energy ?? '',
         entry.mood ?? '',
         entry.sleep ?? '',
@@ -803,9 +808,11 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
 
   function exportWeightCsv() {
     void exportCsv(
-      `yoses-project-peso-${localIsoDate(new Date())}.csv`,
-      ['fecha','peso_kg'],
-      sorted.filter(entry=>typeof entry.weightKg==='number').map(entry=>[entry.date,entry.weightKg ?? ''])
+      `yoses-project-medidas-${localIsoDate(new Date())}.csv`,
+      ['fecha','peso_kg','cintura_cm'],
+      sorted
+        .filter(entry=>typeof entry.weightKg==='number' || typeof entry.waistCm==='number')
+        .map(entry=>[entry.date,entry.weightKg ?? '',entry.waistCm ?? ''])
     )
   }
 
@@ -912,6 +919,14 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
       </section>
 
       <section className="entry-card history-card">
+        <div className="history-card-head">
+          <div><span>CINTURA</span><strong>{latestWaist!==undefined?`${latestWaist.toFixed(1)} CM`:'—'}</strong></div>
+          {waistDelta!==undefined&&waistPoints.length>1&&<em>{waistDelta>0?'+':''}{waistDelta.toFixed(1)} CM</em>}
+        </div>
+        <HistoryLineChart series={[{label:'CINTURA',points:waistPoints}]} emptyText="Registra alguna medición de cintura para empezar a ver la tendencia."/>
+      </section>
+
+      <section className="entry-card history-card">
         <div className="history-card-head"><div><span>ESTADO DEL DÍA</span><strong>ESCALA 1–5</strong></div></div>
         <HistoryLineChart series={wellnessSeries} yMin={1} yMax={5} emptyText="Registra energía, ánimo o sueño para empezar a ver la tendencia."/>
       </section>
@@ -953,8 +968,8 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
         </div>
         <p className="data-export-note">Siempre exporta el histórico completo, independientemente del rango visible.</p>
         <div className="data-export-list">
-          <div className="data-export-item"><div><b>DIARIO COMPLETO</b><small>Una fila por fecha con peso, estado, alcohol, entrenamiento y notas.</small></div><button onClick={exportDailyCsv}>EXPORTAR CSV</button></div>
-          <div className="data-export-item"><div><b>PESO</b><small>Fecha y peso registrado, listo para estudiar la evolución corporal.</small></div><button onClick={exportWeightCsv}>EXPORTAR CSV</button></div>
+          <div className="data-export-item"><div><b>DIARIO COMPLETO</b><small>Una fila por fecha con peso, cintura, estado, alcohol, entrenamiento y notas.</small></div><button onClick={exportDailyCsv}>EXPORTAR CSV</button></div>
+          <div className="data-export-item"><div><b>MEDIDAS</b><small>Fecha, peso y cintura registrados, listos para estudiar la evolución corporal.</small></div><button onClick={exportWeightCsv}>EXPORTAR CSV</button></div>
           <div className="data-export-item"><div><b>ESTADO DEL DÍA</b><small>Energía, ánimo, sueño y notas en cada fecha registrada.</small></div><button onClick={exportWellnessCsv}>EXPORTAR CSV</button></div>
           <div className="data-export-item"><div><b>HÁBITOS</b><small>Alcohol, categorías y cantidades registradas, junto con el indicador de entreno.</small></div><button onClick={exportHabitsCsv}>EXPORTAR CSV</button></div>
           <div className="data-export-item"><div><b>ENTRENAMIENTOS</b><small>Una fila por serie con ejercicio, carga, RIR por serie, repeticiones y volumen calculado.</small></div><button onClick={exportTrainingCsv}>EXPORTAR CSV</button></div>
@@ -1301,6 +1316,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
   const [mood,setMood] = useState<number | undefined>()
   const [sleep,setSleep] = useState<number | undefined>()
   const [weightKg,setWeightKg] = useState<number | undefined>()
+  const [waistCm,setWaistCm] = useState<number | undefined>()
   const [notes,setNotes] = useState('')
   const [saved,setSaved] = useState(false)
   const [hasExistingRecord,setHasExistingRecord] = useState(false)
@@ -1310,7 +1326,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
       setHasExistingRecord(Boolean(e))
       if (!e) return
       setAlcohol(e.alcohol); setAlcoholCategories(e.alcoholCategories || []); setAlcoholAmounts(e.alcoholAmounts || {}); setAlcoholNotes(e.alcoholNotes || ''); setAlcoholDetailOpen(e.alcohol === 'alcohol'); setTrained(e.trained); setTrainingMinutes(e.trainingMinutes); setTrainingType(e.trainingType || 'Fuerza'); setExercises(e.exercises?.length ? e.exercises.map(normalizeTrainingExercise) : [{muscleGroup:'Otro',name:'',sets:[]}])
-      setEnergy(e.energy); setMood(e.mood); setSleep(e.sleep); setWeightKg(e.weightKg); setNotes(e.notes || '')
+      setEnergy(e.energy); setMood(e.mood); setSleep(e.sleep); setWeightKg(e.weightKg); setWaistCm(e.waistCm); setNotes(e.notes || '')
     })
   }, [date])
 
@@ -1330,7 +1346,7 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
 
   async function handleSave() {
     const cleanExercises: TrainingExercise[] = exercises.filter(exercise => exercise.name.trim()).map(exercise => normalizeTrainingExercise({...exercise,name:exercise.name.trim(),sets:Array.isArray(exercise.sets)?exercise.sets:[]}))
-    const entry: DailyEntry = { date, alcohol, alcoholCategories: alcohol === 'alcohol' ? alcoholCategories : undefined, alcoholAmounts: alcohol === 'alcohol' ? alcoholAmounts : undefined, alcoholNotes: alcohol === 'alcohol' && alcoholNotes.trim() ? alcoholNotes.trim() : undefined, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, exercises: trained && cleanExercises.length ? cleanExercises : undefined, energy, mood, sleep, weightKg, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
+    const entry: DailyEntry = { date, alcohol, alcoholCategories: alcohol === 'alcohol' ? alcoholCategories : undefined, alcoholAmounts: alcohol === 'alcohol' ? alcoholAmounts : undefined, alcoholNotes: alcohol === 'alcohol' && alcoholNotes.trim() ? alcoholNotes.trim() : undefined, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, exercises: trained && cleanExercises.length ? cleanExercises : undefined, energy, mood, sleep, weightKg, waistCm, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
     await saveEntry(entry)
     setHasExistingRecord(true)
     setSaved(true)
@@ -1489,22 +1505,44 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
       </section>
 
       <section className="entry-card weight-card">
-        <div className="section-title"><WeightIcon/><span>PESO</span></div>
-        <label className="weight-input-wrap">
-          <input
-            type="number"
-            inputMode="decimal"
-            min="20"
-            max="400"
-            step="0.1"
-            placeholder="—"
-            value={weightKg ?? ''}
-            onChange={(e:any)=>setWeightKg(e.target.value === '' ? undefined : Number(e.target.value))}
-            aria-label="Peso corporal en kilogramos"
-          />
-          <span>KG</span>
-        </label>
-        <p className="microcopy">Peso corporal registrado para este día.</p>
+        <div className="section-title"><WeightIcon/><span>MEDIDAS CORPORALES</span></div>
+        <div className="body-measure-grid">
+          <label className="body-measure-field">
+            <small>PESO</small>
+            <span className="weight-input-wrap">
+              <input
+                type="number"
+                inputMode="decimal"
+                min="20"
+                max="400"
+                step="0.1"
+                placeholder="—"
+                value={weightKg ?? ''}
+                onChange={(e:any)=>setWeightKg(e.target.value === '' ? undefined : Number(e.target.value))}
+                aria-label="Peso corporal en kilogramos"
+              />
+              <span>KG</span>
+            </span>
+          </label>
+          <label className="body-measure-field">
+            <small>CINTURA</small>
+            <span className="weight-input-wrap">
+              <input
+                type="number"
+                inputMode="decimal"
+                min="30"
+                max="250"
+                step="0.1"
+                placeholder="—"
+                value={waistCm ?? ''}
+                onChange={(e:any)=>setWaistCm(e.target.value === '' ? undefined : Number(e.target.value))}
+                aria-label="Perímetro de cintura en centímetros"
+              />
+              <span>CM</span>
+            </span>
+          </label>
+        </div>
+        <p className="microcopy">La cintura es opcional: regístrala solo cuando la midas, siempre en condiciones comparables.</p>
       </section>
 
       <section className="entry-card notes-card">
