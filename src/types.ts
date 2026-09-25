@@ -31,6 +31,7 @@ export interface DailyEntry {
   mood?: number
   sleep?: number
   weightKg?: number
+  waistCm?: number
   notes?: string
   updatedAt: string
 }
