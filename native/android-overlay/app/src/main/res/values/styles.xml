@@ -4,6 +4,9 @@
         <item name="android:fontFamily">sans</item>
         <item name="android:windowActionModeOverlay">true</item>
         <item name="android:windowNoTitle">true</item>
+        <!-- Android 15/16 forces transparent system bars.  Their visible area
+             therefore comes from the window background, not statusBarColor. -->
+        <item name="android:windowBackground">#050706</item>
         <item name="android:statusBarColor">#050706</item>
         <item name="android:navigationBarColor">#050706</item>
         <item name="android:windowLightStatusBar">false</item>

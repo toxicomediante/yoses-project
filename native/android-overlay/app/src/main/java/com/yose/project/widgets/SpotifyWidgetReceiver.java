@@ -10,10 +10,10 @@ import android.media.MediaMetadata;
 import android.media.session.MediaController;
 import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
+import android.net.Uri;
 import android.provider.Settings;
 import android.widget.RemoteViews;
 
-import com.yose.project.MainActivity;
 import com.yose.project.R;
 
 import java.util.List;
@@ -130,11 +130,17 @@ public class SpotifyWidgetReceiver extends AppWidgetProvider {
 
     private static PendingIntent spotifyLaunchIntent(Context context, int appWidgetId, boolean wide) {
         Intent launch = context.getPackageManager().getLaunchIntentForPackage(SPOTIFY_PACKAGE);
-        if (launch == null) launch = new Intent(context, MainActivity.class);
+        // The widget must never fall back to YOSE'S PROJECT: the planet is a
+        // Spotify shortcut. If Spotify is unavailable, show its Play Store page.
+        if (launch == null) {
+            launch = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + SPOTIFY_PACKAGE));
+        }
         launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         return PendingIntent.getActivity(
-            context, 6400 + appWidgetId + (wide ? 1000 : 0), launch,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            // New request-code range invalidates the obsolete pending intent
+            // which used to open the app after widget updates.
+            context, 7400 + appWidgetId + (wide ? 1000 : 0), launch,
+            PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
     }
 
