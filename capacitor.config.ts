@@ -5,6 +5,9 @@ const config: CapacitorConfig = {
   appName: "YOSE'S PROJECT",
   webDir: 'dist',
   bundledWebRuntime: false,
+  plugins: {
+    SystemBars: { insetsHandling: 'disable', style: 'DARK', hidden: false },
+  },
 }
 
 export default config

@@ -453,3 +453,20 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;ba
 .day-cardio-list span{font-size:8px;letter-spacing:1px;color:#dbe3d9}.day-cardio-list small{font-size:6px;letter-spacing:1px;color:#8e988d;white-space:nowrap}.day-cardio-list button{height:26px;border:1px solid rgba(255,255,255,.1);border-radius:7px;background:#070908;color:#899389;font-size:16px;line-height:1;cursor:pointer}
 .cardio-metrics{grid-template-columns:1fr 1fr}
 @media(max-width:360px){.day-cardio-grid{grid-template-columns:minmax(0,1fr) 58px 58px;gap:5px}.day-cardio-list>div{grid-template-columns:1fr auto 24px;gap:5px}}
+
+
+/* Native Android: full-bleed artwork, safe controls, no simulated phone frame.
+   Insets come from the actual window, independent of Android WebView version. */
+html.yose-native .app-shell { padding: 0; }
+html.yose-native .phone-surface {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding-top: max(30px, calc(var(--yose-safe-top, env(safe-area-inset-top, 0px)) + 8px));
+  padding-left: max(16px, var(--yose-safe-left, env(safe-area-inset-left, 0px)));
+  padding-right: max(16px, var(--yose-safe-right, env(safe-area-inset-right, 0px)));
+  padding-bottom: max(32px, calc(var(--yose-safe-bottom, env(safe-area-inset-bottom, 0px)) + 8px));
+}
