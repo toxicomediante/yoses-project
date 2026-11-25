@@ -13,6 +13,9 @@ export interface TrainingExercise {
   muscleGroup: string
   name: string
   loadKg?: number
+  durationMinutes?: number
+  rounds?: number
+  source?: 'daily-cardio' | 'training-template'
   rir?: number
   sets: TrainingSet[]
 }

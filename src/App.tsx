@@ -85,13 +85,16 @@ function RitualHeader({compact=false}:{compact?:boolean}) {
   </div>
 }
 
+const WELLNESS_SCORES = Array.from({length:11},(_,index)=>index)
+const CARDIO_EXERCISES = STRENGTH_EXERCISES.Cardio || []
+
 function Rating({label, value, onChange}:{label:string,value?:number,onChange:(value:number)=>void}) {
   return <div className="rating-row">
     <span>{label}</span>
     <div className="rating-dots" role="group" aria-label={label}>
-      {[1,2,3,4,5].map(n => <button key={n} className={value === n ? 'selected' : ''} onClick={() => onChange(n)} aria-label={`${label}: ${n} de 5`}>{n}</button>)}
+      {WELLNESS_SCORES.map(n => <button key={n} className={value === n ? 'selected' : ''} onClick={() => onChange(n)} aria-label={`${label}: ${n} de 10`}>{n}</button>)}
     </div>
-    <strong>{value ? `${value}/5` : '—'}</strong>
+    <strong>{value !== undefined ? `${value}/10` : '—'}</strong>
   </div>
 }
 
@@ -856,7 +859,7 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
       const exercises=entry.exercises ?? []
       if(!entry.trained && exercises.length===0) return
       if(exercises.length===0) {
-        rows.push([entry.date,entry.trainingType ?? '',entry.trainingMinutes ?? '','','','','','','','',''])
+        rows.push([entry.date,entry.trainingType ?? '',entry.trainingMinutes ?? '','','','','','','','','','',''])
         return
       }
       exercises.map(normalizeTrainingExercise).forEach(exercise=>{
@@ -872,6 +875,8 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
             exercise.muscleGroup,
             exercise.exerciseId ?? '',
             exercise.name,
+            exercise.durationMinutes ?? '',
+            exercise.rounds ?? '',
             load ?? '',
             rir ?? '',
             index+1,
@@ -883,7 +888,7 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
     })
     void exportCsv(
       `yoses-project-entrenamientos-${localIsoDate(new Date())}.csv`,
-      ['fecha','tipo_entrenamiento','duracion_min','grupo_muscular','exercise_id','ejercicio','carga_kg','rir','numero_serie','repeticiones','volumen_serie'],
+      ['fecha','tipo_entrenamiento','duracion_min','grupo_muscular','exercise_id','ejercicio','duracion_ejercicio_min','rondas','carga_kg','rir','numero_serie','repeticiones','volumen_serie'],
       rows
     )
   }
@@ -927,8 +932,8 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
       </section>
 
       <section className="entry-card history-card">
-        <div className="history-card-head"><div><span>ESTADO DEL DÍA</span><strong>ESCALA 1–5</strong></div></div>
-        <HistoryLineChart series={wellnessSeries} yMin={1} yMax={5} emptyText="Registra energía, ánimo o sueño para empezar a ver la tendencia."/>
+        <div className="history-card-head"><div><span>ESTADO DEL DÍA</span><strong>ESCALA 0–10</strong></div></div>
+        <HistoryLineChart series={wellnessSeries} yMin={0} yMax={10} emptyText="Registra energía, ánimo o sueño para empezar a ver la tendencia."/>
       </section>
 
       <section className="entry-card history-card">
@@ -1014,7 +1019,16 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
 
   function changeGroup(index:number,muscleGroup:string) {
     const nextName=STRENGTH_EXERCISES[muscleGroup]?.[0] || 'Otro'
-    updateExercise(index,{muscleGroup,name:nextName,exerciseId:exerciseIdForName(nextName,muscleGroup)})
+    setExercises(current=>current.map((exercise,itemIndex)=>itemIndex===index ? {
+      ...exercise,
+      muscleGroup,
+      name:nextName,
+      exerciseId:exerciseIdForName(nextName,muscleGroup),
+      loadKg:muscleGroup==='Cardio' ? undefined : exercise.loadKg,
+      durationMinutes:muscleGroup==='Cardio' ? exercise.durationMinutes : undefined,
+      rounds:muscleGroup==='Cardio' ? exercise.rounds : undefined,
+      sets:muscleGroup==='Cardio' ? [] : (exercise.sets.length ? exercise.sets : [{}])
+    } : exercise))
   }
 
   function addSet(exerciseIndex:number) {
@@ -1038,23 +1052,29 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
 
   async function dumpToDailyEntry() {
     const valid = exercises
-      .filter(exercise=>exercise.name.trim() && exercise.sets.length)
-      .map(exercise=>normalizeTrainingExercise({...exercise,name:exercise.name.trim(),loadKg:Number(exercise.loadKg)||0,rir:typeof exercise.rir==='number'?Math.min(10,Math.max(0,exercise.rir)):undefined,sets:exercise.sets.map(set=>({reps:Math.max(0,Number(set.reps)||0),rir:typeof set.rir==='number'?Math.min(10,Math.max(0,set.rir)):undefined}))}))
+      .filter(exercise=>exercise.name.trim() && (exercise.muscleGroup==='Cardio' ? Boolean(exercise.durationMinutes || exercise.rounds) : exercise.sets.length))
+      .map(exercise=>({...exercise,source:'training-template' as const}))
+      .map(exercise=>normalizeTrainingExercise({...exercise,name:exercise.name.trim(),loadKg:exercise.muscleGroup==='Cardio' ? undefined : Number(exercise.loadKg)||0,rir:typeof exercise.rir==='number'?Math.min(10,Math.max(0,exercise.rir)):undefined,sets:exercise.muscleGroup==='Cardio' ? [] : exercise.sets.map(set=>({reps:Math.max(0,Number(set.reps)||0),rir:typeof set.rir==='number'?Math.min(10,Math.max(0,set.rir)):undefined}))}))
     if (!valid.length) return
 
     const current = await getEntry(date)
+    const standaloneCardio=(current?.exercises || []).map(normalizeTrainingExercise).filter(exercise=>exercise.source==='daily-cardio')
+    const mergedExercises=[...valid,...standaloneCardio]
+    const hasCardio=mergedExercises.some(exercise=>exercise.muscleGroup==='Cardio')
+    const hasStrength=mergedExercises.some(exercise=>exercise.muscleGroup!=='Cardio')
+    const nextTrainingType=hasCardio && hasStrength ? 'Fuerza + cardio' : hasCardio ? 'Cardio' : 'Fuerza'
     const entry: DailyEntry = current ? {
       ...current,
       trained:true,
-      trainingType:'Fuerza',
-      exercises:valid,
+      trainingType:nextTrainingType,
+      exercises:mergedExercises,
       updatedAt:new Date().toISOString()
     } : {
       date,
       alcohol:null,
       trained:true,
-      trainingType:'Fuerza',
-      exercises:valid,
+      trainingType:nextTrainingType,
+      exercises:mergedExercises,
       updatedAt:new Date().toISOString()
     }
     await saveEntry(entry)
@@ -1082,7 +1102,7 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
 
       <div className="detail-heading strength-heading">
         <div className="strength-heading-inline"><DumbbellIcon active/><h1>ENTRENAMIENTO</h1></div>
-        <p>REGISTRO DE FUERZA · {date.split('-').reverse().join('/')}</p>
+        <p>FUERZA · CARDIO · {date.split('-').reverse().join('/')}</p>
       </div>
 
       <section className="strength-summary">
@@ -1103,27 +1123,32 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
             <label><span>EJERCICIO</span><select value={exercise.name} onChange={(e:any)=>{const name=e.target.value;updateExercise(index,{name,exerciseId:exerciseIdForName(name,exercise.muscleGroup)})}}>{[...(STRENGTH_EXERCISES[exercise.muscleGroup]||['Otro'])].sort((a,b)=>Number(favoriteExercises.includes(b))-Number(favoriteExercises.includes(a))).map(name=><option key={name}>{favoriteExercises.includes(name)?'★ ':''}{name}</option>)}</select></label>
           </div>
 
-          <div className="strength-metrics strength-metrics-single">
-            <label className="strength-load"><span>CARGA</span><div><input type="number" inputMode="decimal" min="0" step="0.5" placeholder="—" value={exercise.loadKg ?? ''} onChange={(e:any)=>updateExercise(index,{loadKg:e.target.value===''?undefined:Number(e.target.value)})}/><b>KG</b></div></label>
-          </div>
+          {exercise.muscleGroup==='Cardio' ? <div className="strength-metrics cardio-metrics">
+            <label className="strength-load"><span>DURACIÓN</span><div><input type="number" inputMode="numeric" min="1" max="600" placeholder="—" value={exercise.durationMinutes ?? ''} onChange={(e:any)=>updateExercise(index,{durationMinutes:e.target.value===''?undefined:Number(e.target.value)})}/><b>MIN</b></div></label>
+            <label className="strength-load"><span>RONDAS</span><div><input type="number" inputMode="numeric" min="1" max="99" placeholder="—" value={exercise.rounds ?? ''} onChange={(e:any)=>updateExercise(index,{rounds:e.target.value===''?undefined:Number(e.target.value)})}/><b>×</b></div></label>
+          </div> : <>
+            <div className="strength-metrics strength-metrics-single">
+              <label className="strength-load"><span>CARGA</span><div><input type="number" inputMode="decimal" min="0" step="0.5" placeholder="—" value={exercise.loadKg ?? ''} onChange={(e:any)=>updateExercise(index,{loadKg:e.target.value===''?undefined:Number(e.target.value)})}/><b>KG</b></div></label>
+            </div>
 
-          <div className="strength-sets">
-            <div className="strength-sets-head"><span>SERIES REALES</span><small>REP.</small><small>RIR</small><i aria-hidden="true"/></div>
-            {exercise.sets.map((set,setIndex)=><div className="strength-set-row" key={setIndex}>
-              <b>SERIE {setIndex+1}</b>
-              <input className="set-reps-input" type="number" inputMode="numeric" min="0" max="99" placeholder="—" value={set.reps ?? ''} onChange={(e:any)=>updateSet(index,setIndex,{reps:e.target.value===''?undefined:Number(e.target.value)})} aria-label={`Repeticiones serie ${setIndex+1}`}/>
-              <input className="set-rir-input" type="number" inputMode="numeric" min="0" max="10" step="1" placeholder="—" value={set.rir ?? ''} onChange={(e:any)=>updateSet(index,setIndex,{rir:e.target.value===''?undefined:Math.min(10,Math.max(0,Number(e.target.value)))})} aria-label={`RIR serie ${setIndex+1}`}/>
-              <button onClick={()=>removeSet(index,setIndex)} aria-label={`Eliminar serie ${setIndex+1}`}>×</button>
-            </div>)}
-            <button className="add-set-button" onClick={()=>addSet(index)}>+ AÑADIR SERIE</button>
-          </div>
+            <div className="strength-sets">
+              <div className="strength-sets-head"><span>SERIES REALES</span><small>REP.</small><small>RIR</small><i aria-hidden="true"/></div>
+              {exercise.sets.map((set,setIndex)=><div className="strength-set-row" key={setIndex}>
+                <b>SERIE {setIndex+1}</b>
+                <input className="set-reps-input" type="number" inputMode="numeric" min="0" max="99" placeholder="—" value={set.reps ?? ''} onChange={(e:any)=>updateSet(index,setIndex,{reps:e.target.value===''?undefined:Number(e.target.value)})} aria-label={`Repeticiones serie ${setIndex+1}`}/>
+                <input className="set-rir-input" type="number" inputMode="numeric" min="0" max="10" step="1" placeholder="—" value={set.rir ?? ''} onChange={(e:any)=>updateSet(index,setIndex,{rir:e.target.value===''?undefined:Math.min(10,Math.max(0,Number(e.target.value)))})} aria-label={`RIR serie ${setIndex+1}`}/>
+                <button onClick={()=>removeSet(index,setIndex)} aria-label={`Eliminar serie ${setIndex+1}`}>×</button>
+              </div>)}
+              <button className="add-set-button" onClick={()=>addSet(index)}>+ AÑADIR SERIE</button>
+            </div>
+          </>}
         </section>)}
       </div>
 
       <button className="add-strength-exercise" onClick={()=>setExercises(current=>[...current,createStrengthExercise()])}>+ AÑADIR EJERCICIO</button>
 
       <button className="primary-button dump-button" onClick={dumpToDailyEntry}>{dumped?'DATOS VOLCADOS ✓':'VOLCAR DATOS A FICHA'} <span>{dumped?'':'→'}</span></button>
-      <p className="dump-help">Guarda este entrenamiento como FUERZA en la ficha de hoy. El borrador permanecerá disponible durante el día.</p>
+      <p className="dump-help">Guarda fuerza, cardio o una sesión mixta en la ficha de hoy. El borrador permanecerá disponible durante el día.</p>
 
       <button className="swipe-hint" onClick={onBack}>DESLIZA ← PARA VOLVER AL CALENDARIO</button>
       <footer>REGISTRA LO QUE HICISTE. NO LO QUE PLANEABAS.</footer>
@@ -1312,6 +1337,9 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
   const [trainingMinutes,setTrainingMinutes] = useState<number | undefined>()
   const [trainingType,setTrainingType] = useState('Fuerza')
   const [exercises,setExercises] = useState<TrainingExercise[]>([{muscleGroup:'Otro',name:'',sets:[]}])
+  const [cardioName,setCardioName] = useState('')
+  const [cardioMinutes,setCardioMinutes] = useState<number | undefined>()
+  const [cardioRounds,setCardioRounds] = useState<number | undefined>()
   const [energy,setEnergy] = useState<number | undefined>()
   const [mood,setMood] = useState<number | undefined>()
   const [sleep,setSleep] = useState<number | undefined>()
@@ -1344,9 +1372,32 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
     })
   }
 
+  function addCardioToDay() {
+    if (!cardioName || (!cardioMinutes && !cardioRounds)) return
+    setExercises(current => [...current,{
+      exerciseId:exerciseIdForName(cardioName,'Cardio'),
+      muscleGroup:'Cardio',
+      name:cardioName,
+      durationMinutes:cardioMinutes,
+      rounds:cardioRounds,
+      source:'daily-cardio',
+      sets:[]
+    }])
+    setTrained(true)
+    if (!exercises.some(exercise=>exercise.name.trim() && exercise.muscleGroup !== 'Cardio')) setTrainingType('Cardio')
+    setCardioMinutes(undefined)
+    setCardioRounds(undefined)
+  }
+
+  function removeCardioFromDay(index:number) {
+    setExercises(current=>current.filter((_,itemIndex)=>itemIndex!==index))
+  }
+
   async function handleSave() {
     const cleanExercises: TrainingExercise[] = exercises.filter(exercise => exercise.name.trim()).map(exercise => normalizeTrainingExercise({...exercise,name:exercise.name.trim(),sets:Array.isArray(exercise.sets)?exercise.sets:[]}))
-    const entry: DailyEntry = { date, alcohol, alcoholCategories: alcohol === 'alcohol' ? alcoholCategories : undefined, alcoholAmounts: alcohol === 'alcohol' ? alcoholAmounts : undefined, alcoholNotes: alcohol === 'alcohol' && alcoholNotes.trim() ? alcoholNotes.trim() : undefined, trained, trainingMinutes: trained ? trainingMinutes : undefined, trainingType: trained ? trainingType : undefined, exercises: trained && cleanExercises.length ? cleanExercises : undefined, energy, mood, sleep, weightKg, waistCm, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
+    const hasCardio=cleanExercises.some(exercise=>exercise.muscleGroup==='Cardio')
+    const didTrain=trained || hasCardio
+    const entry: DailyEntry = { date, alcohol, alcoholCategories: alcohol === 'alcohol' ? alcoholCategories : undefined, alcoholAmounts: alcohol === 'alcohol' ? alcoholAmounts : undefined, alcoholNotes: alcohol === 'alcohol' && alcoholNotes.trim() ? alcoholNotes.trim() : undefined, trained:didTrain, trainingMinutes: didTrain ? trainingMinutes : undefined, trainingType: didTrain ? trainingType : undefined, exercises: didTrain && cleanExercises.length ? cleanExercises : undefined, energy, mood, sleep, weightKg, waistCm, notes: notes.trim() || undefined, updatedAt: new Date().toISOString() }
     await saveEntry(entry)
     setHasExistingRecord(true)
     setSaved(true)
@@ -1360,6 +1411,9 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
     await deleteEntry(date)
     onBack()
   }
+
+  const cardioExercises=exercises.map((exercise,index)=>({exercise,index})).filter(item=>item.exercise.muscleGroup==='Cardio')
+  const otherExercises=exercises.map((exercise,index)=>({exercise,index})).filter(item=>item.exercise.muscleGroup!=='Cardio')
 
   return <main className="app-shell">
     <section className="phone-surface day-screen">
@@ -1440,22 +1494,33 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
         <div className="section-title"><DumbbellIcon/><span>ENTRENAMIENTO</span></div>
         <button className={`training-toggle ${trained?'on':''}`} onClick={()=>setTrained(v=>!v)}><DumbbellIcon active/><span>{trained?'HE ENTRENADO HOY':'SIN ENTRENAMIENTO'}</span><b>{trained?'✓':'+'}</b></button>
         {trained && <div className="training-fields">
-          <label>TIPO<select value={trainingType} onChange={(e:any)=>setTrainingType(e.target.value)}><option>Fuerza</option><option>Boxeo</option><option>Cardio</option><option>Movilidad</option><option>Otro</option></select></label>
+          <label>TIPO<select value={trainingType} onChange={(e:any)=>setTrainingType(e.target.value)}><option>Fuerza</option><option>Fuerza + cardio</option><option>Boxeo</option><option>Cardio</option><option>Movilidad</option><option>Otro</option></select></label>
           <label>DURACIÓN (MIN)<input type="number" min="1" max="600" placeholder="min" value={trainingMinutes ?? ''} onChange={(e:any)=>setTrainingMinutes(e.target.value ? Number(e.target.value) : undefined)}/></label>
+
+          <div className="day-cardio-entry">
+            <div className="exercise-list-heading"><strong>CARDIO DEL DÍA</strong><span>Regístralo aquí aunque no formes parte de una sesión de fuerza.</span></div>
+            <div className="day-cardio-grid">
+              <label>EJERCICIO<select value={cardioName} onChange={(e:any)=>setCardioName(e.target.value)}><option value="">SELECCIONA…</option>{CARDIO_EXERCISES.map(name=><option key={name}>{name}</option>)}</select></label>
+              <label>MINUTOS<input type="number" min="1" max="600" placeholder="—" value={cardioMinutes ?? ''} onChange={(e:any)=>setCardioMinutes(e.target.value===''?undefined:Number(e.target.value))}/></label>
+              <label>RONDAS<input type="number" min="1" max="99" placeholder="—" value={cardioRounds ?? ''} onChange={(e:any)=>setCardioRounds(e.target.value===''?undefined:Number(e.target.value))}/></label>
+              <button type="button" onClick={addCardioToDay} disabled={!cardioName || (!cardioMinutes && !cardioRounds)}>+ AÑADIR</button>
+            </div>
+            {cardioExercises.length>0&&<div className="day-cardio-list">{cardioExercises.map(({exercise,index})=><div key={index}><span>{exercise.name}</span><small>{exercise.durationMinutes ? `${exercise.durationMinutes} MIN` : ''}{exercise.durationMinutes && exercise.rounds ? ' · ' : ''}{exercise.rounds ? `${exercise.rounds} RONDAS` : ''}</small><button type="button" onClick={()=>removeCardioFromDay(index)} aria-label={`Eliminar ${exercise.name}`}>×</button></div>)}</div>}
+          </div>
 
           <div className="exercise-list">
             <div className="exercise-list-heading">
               <strong>EJERCICIOS</strong>
             </div>
 
-            {exercises.map((exercise,index) => {
+            {otherExercises.map(({exercise,index},position) => {
               const hasLoad = exercise.loadKg !== undefined && exercise.loadKg !== null
               const hasLegacyRir = exercise.rir !== undefined && exercise.rir !== null
               const visibleSets = Array.isArray(exercise.sets) ? exercise.sets.filter(set => (set.reps !== undefined && set.reps !== null) || (set.rir !== undefined && set.rir !== null)) : []
               return <div className="exercise-record" key={index}>
                 <div className="exercise-row">
                   <label>
-                    <span>EJERCICIO {index + 1}{exercise.muscleGroup && exercise.muscleGroup !== 'Otro' ? ` · ${exercise.muscleGroup.toUpperCase()}` : ''}</span>
+                      <span>EJERCICIO {position + 1}{exercise.muscleGroup && exercise.muscleGroup !== 'Otro' ? ` · ${exercise.muscleGroup.toUpperCase()}` : ''}</span>
                     <input
                       type="text"
                       placeholder="Nombre del ejercicio"
@@ -1463,10 +1528,10 @@ function DayScreen({date,onBack}:{date:string,onBack:()=>void}) {
                       onChange={(e:any)=>setExercises(current => current.map((item,i)=>i===index ? {...item,name:e.target.value} : item))}
                     />
                   </label>
-                  {exercises.length > 1 && <button
+                  {otherExercises.length > 1 && <button
                     className="remove-exercise"
                     onClick={()=>setExercises(current => current.filter((_,i)=>i!==index))}
-                    aria-label={`Eliminar ejercicio ${index + 1}`}
+                    aria-label={`Eliminar ejercicio ${position + 1}`}
                   >×</button>}
                 </div>
 
