@@ -129,17 +129,20 @@ public class SpotifyWidgetReceiver extends AppWidgetProvider {
     }
 
     private static PendingIntent spotifyLaunchIntent(Context context, int appWidgetId, boolean wide) {
+        // Resolve the actual installed Spotify activity. Package visibility is
+        // declared in AndroidManifest.xml for Android 11+.
         Intent launch = context.getPackageManager().getLaunchIntentForPackage(SPOTIFY_PACKAGE);
-        // The widget must never fall back to YOSE'S PROJECT: the planet is a
-        // Spotify shortcut. If Spotify is unavailable, show its Play Store page.
         if (launch == null) {
-            launch = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + SPOTIFY_PACKAGE));
+            // An explicit package-scoped deep link also works when a launcher
+            // activity cannot be resolved. Never redirect an installed app to Play.
+            launch = new Intent(Intent.ACTION_VIEW, Uri.parse("spotify:home"));
+            launch.setPackage(SPOTIFY_PACKAGE);
         }
         launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         return PendingIntent.getActivity(
             // New request-code range invalidates the obsolete pending intent
             // which used to open the app after widget updates.
-            context, 7400 + appWidgetId + (wide ? 1000 : 0), launch,
+            context, 8400 + appWidgetId + (wide ? 1000 : 0), launch,
             PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
     }
