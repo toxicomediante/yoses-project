@@ -179,9 +179,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:paddingLeft="30dp"
+        android:paddingLeft="24dp"
         android:paddingTop="16dp"
-        android:paddingRight="210dp"
+        android:paddingRight="180dp"
         android:paddingBottom="13dp">
 
         <TextView
@@ -230,48 +230,56 @@
             android:textSize="10sp" />
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="38dp"
             android:gravity="center"
             android:orientation="horizontal">
 
             <ImageButton
                 android:id="@+id/spotify_prev"
-                android:layout_width="38dp"
+                android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="38dp"
-                android:layout_marginRight="5dp"
+                android:layout_marginRight="3dp"
                 android:background="@drawable/widget_spotify_button"
                 android:contentDescription="Anterior"
-                android:padding="9dp"
+                android:padding="5dp"
+                android:scaleType="fitCenter"
                 android:src="@drawable/ic_spotify_prev" />
 
             <ImageButton
                 android:id="@+id/spotify_play"
-                android:layout_width="38dp"
+                android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="38dp"
-                android:layout_marginRight="5dp"
+                android:layout_marginRight="3dp"
                 android:background="@drawable/widget_spotify_button_accent"
                 android:contentDescription="Reproducir"
-                android:padding="9dp"
+                android:padding="5dp"
+                android:scaleType="fitCenter"
                 android:src="@drawable/ic_spotify_play" />
 
             <ImageButton
                 android:id="@+id/spotify_stop"
-                android:layout_width="38dp"
+                android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="38dp"
-                android:layout_marginRight="5dp"
+                android:layout_marginRight="3dp"
                 android:background="@drawable/widget_spotify_button"
                 android:contentDescription="Parar"
-                android:padding="9dp"
+                android:padding="5dp"
+                android:scaleType="fitCenter"
                 android:src="@drawable/ic_spotify_stop" />
 
             <ImageButton
                 android:id="@+id/spotify_next"
-                android:layout_width="38dp"
+                android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="38dp"
                 android:background="@drawable/widget_spotify_button"
                 android:contentDescription="Siguiente"
-                android:padding="9dp"
+                android:padding="5dp"
+                android:scaleType="fitCenter"
                 android:src="@drawable/ic_spotify_next" />
         </LinearLayout>
     </LinearLayout>
