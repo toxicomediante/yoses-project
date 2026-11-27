@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { App as CapacitorApp } from '@capacitor/app'
-import { Capacitor } from '@capacitor/core'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 import { clearAllEntries, deleteEntry, getAllEntries, getEntry, recoverNativeStateIfNeeded, replaceAllEntries, saveEntry, saveTextFile, syncNativeWidgets, verifyBackupProtection } from './storage'
 import type { AlcoholCategory, AlcoholStatus, DailyEntry, TrainingExercise } from './types'
 import { STRENGTH_EXERCISES, canonicalExerciseName, exerciseIdForName, normalizeDailyEntry, normalizeTrainingExercise } from './exerciseCatalog'
@@ -1157,17 +1157,34 @@ function StrengthLogScreen({date,onBack,onDumped,onPlan}:{date:string,onBack:()=
 }
 
 const DAILY_PLAN_ID = '1vDWxcVZPGY-ZCk9ncZmkuy-fTpiBg7gq'
+const DailyPlan = registerPlugin<{load():Promise<{image:string}>}>('DailyPlan')
 function DailyPlanScreen({onBack}:{onBack:()=>void}) {
   const [revision,setRevision] = useState(()=>Date.now())
-  const [source,setSource] = useState(0)
+  const [image,setImage] = useState('')
   const [status,setStatus] = useState<'loading'|'ready'|'error'>('loading')
   const swipe = useRef<{x:number,y:number}|null>(null)
-  const urls = [
-    'https://drive.google.com/uc?export=download&id='+DAILY_PLAN_ID,
-    'https://drive.usercontent.google.com/download?id='+DAILY_PLAN_ID+'&export=download&confirm=t',
-    'https://drive.google.com/thumbnail?id='+DAILY_PLAN_ID+'&sz=w1260'
-  ]
-  function reload(){setStatus('loading');setSource(0);setRevision(Date.now())}
+  function reload(){setStatus('loading');setImage('');setRevision(r=>Math.max(r+1,Date.now()))}
+  useEffect(()=>{
+    let active=true
+    const abort=new AbortController()
+    async function load(){
+      try {
+        let url:string
+        if(Capacitor.isNativePlatform()){
+          url=(await DailyPlan.load()).image
+        }else{
+          const response=await fetch('https://drive.usercontent.google.com/download?id='+DAILY_PLAN_ID+'&export=download&confirm=t&fresh='+revision,{cache:'no-store',signal:abort.signal})
+          if(!response.ok)throw new Error('HTTP '+response.status)
+          const blob=await response.blob()
+          if(blob.type!=='image/png')throw new Error('Invalid PNG')
+          url=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=reject;reader.readAsDataURL(blob)})
+        }
+        if(active)setImage(url)
+      }catch{if(active)setStatus('error')}
+    }
+    void load()
+    return ()=>{active=false;abort.abort()}
+  },[revision])
   return <main className="app-shell daily-plan-shell">
     <section className="phone-surface daily-plan-screen"
       onTouchStart={e=>{if(e.touches.length!==1){swipe.current=null;return}const t=e.touches[0];swipe.current={x:t.clientX,y:t.clientY}}}
@@ -1181,7 +1198,7 @@ function DailyPlanScreen({onBack}:{onBack:()=>void}) {
       <div className="daily-plan-image-area">
         {status==='loading'&&<p className="daily-plan-message" role="status">CARGANDO PLAN…</p>}
         {status==='error'?<div className="daily-plan-message" role="alert">NO SE HA PODIDO CARGAR EL PLAN.<button onClick={reload}>REINTENTAR</button></div>:
-          <img key={revision+'-'+source} className={'daily-plan-image '+(status==='ready'?'ready':'')} src={urls[source]+'&v='+revision} alt="Infografía del último entrenamiento" referrerPolicy="no-referrer" onLoad={()=>setStatus('ready')} onError={()=>{if(source<urls.length-1)setSource(source+1);else setStatus('error')}}/>}
+          image&&<img key={revision} className={'daily-plan-image '+(status==='ready'?'ready':'')} src={image} alt="Infografía del último entrenamiento" onLoad={()=>setStatus('ready')} onError={()=>setStatus('error')}/>}
       </div>
     </section>
   </main>

@@ -25,6 +25,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(YoseWidgetsPlugin.class);
+        registerPlugin(DailyPlanPlugin.class);
         applyWidgetRoute(getIntent());
         bridgeBuilder.addWebViewListener(new WebViewListener() {
             @Override
