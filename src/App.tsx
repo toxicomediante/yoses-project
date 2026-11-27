@@ -988,7 +988,7 @@ function HistoryScreen({entries,onBack}:{entries:DailyEntry[];onBack:()=>void}) 
   </main>
 }
 
-function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,onDumped:()=>void}) {
+function StrengthLogScreen({date,onBack,onDumped,onPlan}:{date:string,onBack:()=>void,onDumped:()=>void,onPlan:()=>void}) {
   const favoriteExercises=useMemo(()=>loadAppSettings().favoriteExercises,[])
   const [exercises,setExercises] = useState<TrainingExercise[]>([createStrengthExercise()])
   const [savedDraft,setSavedDraft] = useState(false)
@@ -1089,13 +1089,13 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
     <section
       className="phone-surface strength-screen"
       onTouchStart={(e:any)=>{const t=e.changedTouches[0];swipeStart.current={x:t.clientX,y:t.clientY}}}
-      onTouchEnd={(e:any)=>{const start=swipeStart.current;if(!start)return;const t=e.changedTouches[0];const dx=t.clientX-start.x;const dy=t.clientY-start.y;if(dx<-70&&Math.abs(dx)>Math.abs(dy)*1.25)onBack();swipeStart.current=null}}
+      onTouchEnd={(e:any)=>{const start=swipeStart.current;if(!start)return;const t=e.changedTouches[0];const dx=t.clientX-start.x;const dy=t.clientY-start.y;if(Math.abs(dx)>Math.abs(dy)*1.25){if(dx<-70)onBack();else if(dx>70)onPlan();}swipeStart.current=null}}
     >
       <div className="header-nebula strength-nebula" style={{backgroundImage:`url(${ritualNebula})`}} aria-hidden="true" />
       <header className="topbar detail-topbar strength-topbar">
         <button className="icon-button" onClick={onBack} aria-label="Volver al calendario"><BackIcon/></button>
         <div className="brand mini detail-brand"><span>YOSE'S</span><small>PROJECT</small></div>
-        <div className="topbar-spacer" aria-hidden="true" />
+        <button className="icon-button plan-nav-button" onClick={onPlan} aria-label="Plan del día">PLAN →</button>
       </header>
 
       <div className="detail-ritual-wrap strength-ritual-wrap"><RitualHeader compact/></div>
@@ -1150,8 +1150,39 @@ function StrengthLogScreen({date,onBack,onDumped}:{date:string,onBack:()=>void,o
       <button className="primary-button dump-button" onClick={dumpToDailyEntry}>{dumped?'DATOS VOLCADOS ✓':'VOLCAR DATOS A FICHA'} <span>{dumped?'':'→'}</span></button>
       <p className="dump-help">Guarda fuerza, cardio o una sesión mixta en la ficha de hoy. El borrador permanecerá disponible durante el día.</p>
 
-      <button className="swipe-hint" onClick={onBack}>DESLIZA ← PARA VOLVER AL CALENDARIO</button>
+      <div className="home-swipe-nav"><button className="swipe-hint" onClick={onPlan}>PLAN DEL DÍA →</button><button className="swipe-hint" onClick={onBack}>← CALENDARIO</button></div>
       <footer>REGISTRA LO QUE HICISTE. NO LO QUE PLANEABAS.</footer>
+    </section>
+  </main>
+}
+
+const DAILY_PLAN_ID = '1vDWxcVZPGY-ZCk9ncZmkuy-fTpiBg7gq'
+function DailyPlanScreen({onBack}:{onBack:()=>void}) {
+  const [revision,setRevision] = useState(()=>Date.now())
+  const [source,setSource] = useState(0)
+  const [status,setStatus] = useState<'loading'|'ready'|'error'>('loading')
+  const swipe = useRef<{x:number,y:number}|null>(null)
+  const urls = [
+    'https://drive.google.com/uc?export=download&id='+DAILY_PLAN_ID,
+    'https://drive.usercontent.google.com/download?id='+DAILY_PLAN_ID+'&export=download&confirm=t',
+    'https://drive.google.com/thumbnail?id='+DAILY_PLAN_ID+'&sz=w1260'
+  ]
+  function reload(){setStatus('loading');setSource(0);setRevision(Date.now())}
+  return <main className="app-shell daily-plan-shell">
+    <section className="phone-surface daily-plan-screen"
+      onTouchStart={e=>{if(e.touches.length!==1){swipe.current=null;return}const t=e.touches[0];swipe.current={x:t.clientX,y:t.clientY}}}
+      onTouchCancel={()=>{swipe.current=null}}
+      onTouchEnd={e=>{const s=swipe.current;swipe.current=null;if(!s)return;const t=e.changedTouches[0];const dx=t.clientX-s.x,dy=t.clientY-s.y;if(dx<-70&&Math.abs(dx)>Math.abs(dy)*1.25)onBack()}}>
+      <header className="daily-plan-toolbar">
+        <button onClick={onBack} aria-label="Volver a entrenamiento">←</button>
+        <h1>PLAN DEL DÍA</h1>
+        <button onClick={reload} aria-label="Actualizar plan">↻</button>
+      </header>
+      <div className="daily-plan-image-area">
+        {status==='loading'&&<p className="daily-plan-message" role="status">CARGANDO PLAN…</p>}
+        {status==='error'?<div className="daily-plan-message" role="alert">NO SE HA PODIDO CARGAR EL PLAN.<button onClick={reload}>REINTENTAR</button></div>:
+          <img key={revision+'-'+source} className={'daily-plan-image '+(status==='ready'?'ready':'')} src={urls[source]+'&v='+revision} alt="Infografía del último entrenamiento" referrerPolicy="no-referrer" onLoad={()=>setStatus('ready')} onError={()=>{if(source<urls.length-1)setSource(source+1);else setStatus('error')}}/>}
+      </div>
     </section>
   </main>
 }
@@ -1162,7 +1193,7 @@ function App() {
   const [entries, setEntries] = useState<DailyEntry[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [screen,setScreen] = useState<'home'|'timer'|'strength'|'history'|'settings'>('home')
+  const [screen,setScreen] = useState<'home'|'timer'|'strength'|'plan'|'history'|'settings'>('home')
   const homeSwipeStart = useRef<{x:number,y:number} | null>(null)
 
   async function refresh() {
@@ -1242,7 +1273,11 @@ function App() {
   }
 
   if (screen === 'strength') {
-    return <StrengthLogScreen date={localIsoDate(today)} onBack={()=>setScreen('home')} onDumped={()=>void refresh()} />
+    return <StrengthLogScreen date={localIsoDate(today)} onBack={()=>setScreen('home')} onDumped={()=>void refresh()} onPlan={()=>setScreen('plan')} />
+  }
+
+  if (screen === 'plan') {
+    return <DailyPlanScreen onBack={()=>setScreen('strength')} />
   }
 
   if (screen === 'history') {

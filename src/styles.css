@@ -470,3 +470,18 @@ html.yose-native .phone-surface {
   padding-right: max(16px, var(--yose-safe-right, env(safe-area-inset-right, 0px)));
   padding-bottom: max(32px, calc(var(--yose-safe-bottom, env(safe-area-inset-bottom, 0px)) + 8px));
 }
+
+/* Daily plan: remote image only, no persistent download. */
+.plan-nav-button{font-size:8px;font-weight:800;letter-spacing:.4px;color:var(--acid)}
+.app-shell.daily-plan-shell{padding:0;min-height:100dvh}
+.phone-surface.daily-plan-screen{width:100%;max-width:none;min-height:100dvh;height:100dvh;display:flex;flex-direction:column;padding:0;border:0;border-radius:0;background:#080a08;box-shadow:none;touch-action:pan-y pinch-zoom}
+html.yose-native .phone-surface.daily-plan-screen{padding:0;padding-top:var(--yose-safe-top,0px);padding-bottom:var(--yose-safe-bottom,0px)}
+.daily-plan-screen:before{display:none}
+.daily-plan-toolbar{flex:0 0 36px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;z-index:2;background:#080a08}
+.daily-plan-toolbar h1{font-size:10px;letter-spacing:2px;color:var(--acid);margin:0}
+.daily-plan-toolbar button{border:0;background:none;color:var(--acid);font-size:23px;width:44px;height:36px}
+.daily-plan-image-area{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.daily-plan-image{display:block;width:100%;height:100%;object-fit:contain;visibility:hidden}
+.daily-plan-image.ready{visibility:visible}
+.daily-plan-message{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--acid);font-size:11px;text-align:center;letter-spacing:1px}
+.daily-plan-message button{background:none;border:1px solid var(--acid);color:var(--acid);padding:10px 18px;border-radius:8px}
